@@ -1,6 +1,6 @@
 //
 //  AccessibleView.swift
-//  ios-skills (evals fixture - gold standard compliant view)
+//  ios-agent-skills (evals fixture - gold standard compliant view)
 //
 
 import SwiftUI

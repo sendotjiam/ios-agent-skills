@@ -1,6 +1,6 @@
 //
 //  ViolationsView.swift
-//  ios-skills (evals fixture - deliberate anti-patterns)
+//  ios-agent-skills (evals fixture - deliberate anti-patterns)
 //
 
 import SwiftUI

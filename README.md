@@ -1,4 +1,4 @@
-# iOS Agent Skills (`ios-skills`)
+# iOS Agent Skills (`ios-agent-skills`)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Swift-6.0%2B-F05138?logo=swift&logoColor=white" alt="Swift 6" />
@@ -61,15 +61,15 @@ Recommended if you use a centralized skills repository shared across assistants:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/sendotjiam/ios-skills.git ~/Documents/ios-skills
+git clone https://github.com/sendotjiam/ios-agent-skills.git ~/Documents/ios-agent-skills
 
 # 2. Symlink skills into your agent hub
-ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.agents/skills/ios-concurrency-audit
-ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.agents/skills/swiftui-render-optimization
-ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.agents/skills/ios-codebase-cleanup
-ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.agents/skills/ios-memory-leak-audit
-ln -s ~/Documents/ios-skills/skills/coredata-swiftdata-audit ~/.agents/skills/coredata-swiftdata-audit
-ln -s ~/Documents/ios-skills/skills/ios-a11y-audit ~/.agents/skills/ios-a11y-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-concurrency-audit ~/.agents/skills/ios-concurrency-audit
+ln -s ~/Documents/ios-agent-skills/skills/swiftui-render-optimization ~/.agents/skills/swiftui-render-optimization
+ln -s ~/Documents/ios-agent-skills/skills/ios-codebase-cleanup ~/.agents/skills/ios-codebase-cleanup
+ln -s ~/Documents/ios-agent-skills/skills/ios-memory-leak-audit ~/.agents/skills/ios-memory-leak-audit
+ln -s ~/Documents/ios-agent-skills/skills/coredata-swiftdata-audit ~/.agents/skills/coredata-swiftdata-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-a11y-audit ~/.agents/skills/ios-a11y-audit
 
 # 3. Synchronize across Antigravity, Claude Code, and Codex
 ~/.agents/sync-skills.sh
@@ -77,22 +77,22 @@ ln -s ~/Documents/ios-skills/skills/ios-a11y-audit ~/.agents/skills/ios-a11y-aud
 
 ### Option 2: Claude Code Direct
 ```bash
-ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.claude/skills/ios-concurrency-audit
-ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.claude/skills/swiftui-render-optimization
-ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.claude/skills/ios-codebase-cleanup
-ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.claude/skills/ios-memory-leak-audit
-ln -s ~/Documents/ios-skills/skills/coredata-swiftdata-audit ~/.claude/skills/coredata-swiftdata-audit
-ln -s ~/Documents/ios-skills/skills/ios-a11y-audit ~/.claude/skills/ios-a11y-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-concurrency-audit ~/.claude/skills/ios-concurrency-audit
+ln -s ~/Documents/ios-agent-skills/skills/swiftui-render-optimization ~/.claude/skills/swiftui-render-optimization
+ln -s ~/Documents/ios-agent-skills/skills/ios-codebase-cleanup ~/.claude/skills/ios-codebase-cleanup
+ln -s ~/Documents/ios-agent-skills/skills/ios-memory-leak-audit ~/.claude/skills/ios-memory-leak-audit
+ln -s ~/Documents/ios-agent-skills/skills/coredata-swiftdata-audit ~/.claude/skills/coredata-swiftdata-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-a11y-audit ~/.claude/skills/ios-a11y-audit
 ```
 
 ### Option 3: Codex Direct
 ```bash
-ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.codex/skills/ios-concurrency-audit
-ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.codex/skills/swiftui-render-optimization
-ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.codex/skills/ios-codebase-cleanup
-ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.codex/skills/ios-memory-leak-audit
-ln -s ~/Documents/ios-skills/skills/coredata-swiftdata-audit ~/.codex/skills/coredata-swiftdata-audit
-ln -s ~/Documents/ios-skills/skills/ios-a11y-audit ~/.codex/skills/ios-a11y-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-concurrency-audit ~/.codex/skills/ios-concurrency-audit
+ln -s ~/Documents/ios-agent-skills/skills/swiftui-render-optimization ~/.codex/skills/swiftui-render-optimization
+ln -s ~/Documents/ios-agent-skills/skills/ios-codebase-cleanup ~/.codex/skills/ios-codebase-cleanup
+ln -s ~/Documents/ios-agent-skills/skills/ios-memory-leak-audit ~/.codex/skills/ios-memory-leak-audit
+ln -s ~/Documents/ios-agent-skills/skills/coredata-swiftdata-audit ~/.codex/skills/coredata-swiftdata-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-a11y-audit ~/.codex/skills/ios-a11y-audit
 ```
 
 ---

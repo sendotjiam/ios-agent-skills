@@ -1,6 +1,6 @@
 //
 //  DynamicTypeViolation.swift
-//  ios-skills (evals fixture - Dynamic Type clipping)
+//  ios-agent-skills (evals fixture - Dynamic Type clipping)
 //
 
 import SwiftUI

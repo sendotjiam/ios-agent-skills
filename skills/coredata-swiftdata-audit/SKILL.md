@@ -74,18 +74,18 @@ The scanner detects:
 1. Verify all background Core Data operations are wrapped in `context.perform` or `context.performAndWait`.
 2. Inspect async functions and Tasks: Ensure raw models are never passed across actor boundaries. Only pass `NSManagedObjectID` (Core Data) or `PersistentIdentifier` (SwiftData).
 3. Verify that all background SwiftData workers are implemented as `@ModelActor` actors.
-4. *Reference:* [concurrency-and-modelactor.md](file:///Users/sendotjiamis/Documents/ios-skills/skills/coredata-swiftdata-audit/references/concurrency-and-modelactor.md).
+4. *Reference:* [concurrency-and-modelactor.md](file:///Users/sendotjiamis/Documents/ios-agent-skills/skills/coredata-swiftdata-audit/references/concurrency-and-modelactor.md).
 
 ### Step 2: Fault Thrashing & Prefetching Audit
 1. Audit all `for ... in` loops accessing entity relationships: verify `relationshipKeyPathsForPrefetching` is configured on the fetch request.
 2. Check table and collection view datasources: verify `fetchBatchSize` is configured on all `NSFetchRequest` instances.
 3. Check SwiftUI `@Query` usage: ensure search text filters are debounced before updating predicates.
-4. *Reference:* [fault-thrashing-and-prefetching.md](file:///Users/sendotjiamis/Documents/ios-skills/skills/coredata-swiftdata-audit/references/fault-thrashing-and-prefetching.md).
+4. *Reference:* [fault-thrashing-and-prefetching.md](file:///Users/sendotjiamis/Documents/ios-agent-skills/skills/coredata-swiftdata-audit/references/fault-thrashing-and-prefetching.md).
 
 ### Step 3: Batch Operations & Memory Reclamation Audit
 1. Search for bulk deletion patterns: replace loops calling `context.delete()` with `NSBatchDeleteRequest` (Core Data) or `modelContext.delete(model:where:)` (SwiftData 18).
 2. Inspect ingestion and sync loops: ensure transactions are broken into 500-1000 item chunks wrapped in `@autoreleasepool` with `context.save()` and `context.reset()`.
-3. *Reference:* [batch-operations-and-memory.md](file:///Users/sendotjiamis/Documents/ios-skills/skills/coredata-swiftdata-audit/references/batch-operations-and-memory.md).
+3. *Reference:* [batch-operations-and-memory.md](file:///Users/sendotjiamis/Documents/ios-agent-skills/skills/coredata-swiftdata-audit/references/batch-operations-and-memory.md).
 
 ### Step 4: CloudKit & Schema Migration Audit
 1. If using `NSPersistentCloudKitContainer` or SwiftData CloudKit sync:
@@ -95,7 +95,7 @@ The scanner detects:
 2. Check schema migration safety:
    - Verify changes are handled by `VersionedSchema` and `SchemaMigrationPlan`.
    - Ensure store loading is performed asynchronously to avoid watchdog kills.
-3. *References:* [cloudkit-sync-and-multi-context.md](file:///Users/sendotjiamis/Documents/ios-skills/skills/coredata-swiftdata-audit/references/cloudkit-sync-and-multi-context.md) and [migration-safety-and-schemaplans.md](file:///Users/sendotjiamis/Documents/ios-skills/skills/coredata-swiftdata-audit/references/migration-safety-and-schemaplans.md).
+3. *References:* [cloudkit-sync-and-multi-context.md](file:///Users/sendotjiamis/Documents/ios-agent-skills/skills/coredata-swiftdata-audit/references/cloudkit-sync-and-multi-context.md) and [migration-safety-and-schemaplans.md](file:///Users/sendotjiamis/Documents/ios-agent-skills/skills/coredata-swiftdata-audit/references/migration-safety-and-schemaplans.md).
 
 ---
 
@@ -108,4 +108,4 @@ Add these to Scheme -> Run -> Arguments:
 
 ### Instruments Profiling
 - Use **Product -> Profile -> Core Data** to track Fault Trips, Fetches, and Saves over time.
-- *Reference:* [instruments-and-sql-tracing.md](file:///Users/sendotjiamis/Documents/ios-skills/skills/coredata-swiftdata-audit/references/instruments-and-sql-tracing.md).
+- *Reference:* [instruments-and-sql-tracing.md](file:///Users/sendotjiamis/Documents/ios-agent-skills/skills/coredata-swiftdata-audit/references/instruments-and-sql-tracing.md).
