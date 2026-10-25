@@ -1,0 +1,54 @@
+{
+  "skill_name": "swiftui-render-optimization",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit eval1_identity_churn.swift for SwiftUI render bottlenecks, identity churn, and view graph invalidations. Propose surgical fixes.",
+      "expected_output": "Audit report identifying ForEach id: \\.self identity instability on mutated struct, AnyView type erasure, and volatile explicit .id(UUID()) view graph destruction with @ViewBuilder and stable ID fixes.",
+      "files": ["evals/files/eval1_identity_churn.swift"],
+      "expectations": [
+        "Identifies ForEach with id: \\.self on mutated Hashable struct causing identity instability",
+        "Identifies AnyView type erasure destroying compile-time structural diffing",
+        "Identifies volatile explicit .id(UUID()) destroying subview state and resetting view graph",
+        "Recommends @ViewBuilder or concrete view hierarchy and stable Identifiable IDs"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit eval2_body_computation.swift for SwiftUI render and scroll hitch bottlenecks.",
+      "expected_output": "Audit report flagging DateFormatter instantiation inside body, unmemoized .sorted()/.filter() array computations during render, and eager VStack in ScrollView.",
+      "files": ["evals/files/eval2_body_computation.swift"],
+      "expectations": [
+        "Identifies DateFormatter instantiation inside body as high-cost allocation",
+        "Identifies array .filter() and .sorted() called in body causing main thread computation stalls",
+        "Identifies eager VStack inside ScrollView causing all rows to be instantiated immediately",
+        "Suggests LazyVStack, static/cached DateFormatter or FormatStyle, and pre-computed ViewModel properties"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit eval3_observation_invalidation.swift for SwiftUI state over-invalidation and observation issues.",
+      "expected_output": "Audit report identifying missing @ObservationIgnored on background properties, coarse observable store passing to leaf views, and inline @ObservedObject instantiation.",
+      "files": ["evals/files/eval3_observation_invalidation.swift"],
+      "expectations": [
+        "Identifies inline @ObservedObject instantiation recreating store on every parent render",
+        "Identifies passing entire observable store to MetricBadgeView instead of primitive value type",
+        "Identifies missing @ObservationIgnored on background timer and non-UI state in @Observable class",
+        "Recommends state slicing, primitive property injection, and @ObservationIgnored annotations"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit eval4_lifecycle_traps.swift for SwiftUI lifecycle anti-patterns, state synchronization traps, and presentation leaks.",
+      "expected_output": "Audit report identifying @State in init() desynchronization trap, side-effects in view init(), sheet modifier inside ForEach loop, and unstructured Task in onAppear.",
+      "files": ["evals/files/eval4_lifecycle_traps.swift"],
+      "expectations": [
+        "Identifies @State initialized in init() from parameter causing stale state bug",
+        "Identifies side-effects / analytics logging in view struct init()",
+        "Identifies .sheet modifier placed inside ForEach loop allocating N presentation coordinators",
+        "Identifies unstructured Task inside .onAppear lacking automatic lifecycle cancellation",
+        "Recommends @Binding, hoisting sheet to parent, and replacing .onAppear Task with .task modifier"
+      ]
+    }
+  ]
+}

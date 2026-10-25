@@ -17,6 +17,7 @@ A curated collection of production-grade agentic AI skills for iOS, iPadOS, macO
 | Skill | Category | Directory | Description |
 | :--- | :--- | :--- | :--- |
 | **`ios-concurrency-audit`** | Performance & Concurrency | [`skills/ios-concurrency-audit`](./skills/ios-concurrency-audit) | Audits codebases for severe hangs ($\ge 250\text{ms}$), mini-hangs/hitches ($16-250\text{ms}$), main-thread blocking calls, actor reentrancy hazards, data races, deadlocks, Swift 6 unsafety, and cooperative thread pool starvation across Swift Concurrency and GCD. |
+| **`swiftui-render-optimization`** | UI/UX & Render Performance | [`skills/swiftui-render-optimization`](./skills/swiftui-render-optimization) | Audits and optimizes SwiftUI view hierarchies for 120fps/60fps smoothness. Detects view graph invalidations, identity churn (structural vs explicit, AnyView), observation over-invalidation (@Observable vs ObservableObject), main-thread body computation, layout thrashing, and lifecycle anti-patterns. |
 
 ---
 
@@ -60,6 +61,7 @@ git clone https://github.com/sendotjiam/ios-skills.git ~/Documents/ios-skills
 
 # 2. Symlink skills into your agent hub
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.agents/skills/ios-concurrency-audit
+ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.agents/skills/swiftui-render-optimization
 
 # 3. Synchronize across Antigravity, Claude Code, and Codex
 ~/.agents/sync-skills.sh
@@ -68,11 +70,13 @@ ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.agents/skills/ios-c
 ### Option 2: Claude Code Direct
 ```bash
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.claude/skills/ios-concurrency-audit
+ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.claude/skills/swiftui-render-optimization
 ```
 
 ### Option 3: Codex Direct
 ```bash
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.codex/skills/ios-concurrency-audit
+ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.codex/skills/swiftui-render-optimization
 ```
 
 ---
@@ -103,10 +107,38 @@ python3 skills/ios-concurrency-audit/scripts/scan_concurrency.py /path/to/ios/pr
 
 ---
 
+## 🔍 Skill Spotlight: `swiftui-render-optimization`
+
+### 1. Automated CLI Fast-Scanner (`scan_swiftui_renders.py`)
+Quickly scan SwiftUI views across your project for render bottlenecks, heavy allocations, and lifecycle leaks:
+
+```bash
+# Output formatted table
+python3 skills/swiftui-render-optimization/scripts/scan_swiftui_renders.py /path/to/ios/project
+
+# Or export structured Markdown for pull request reviews
+python3 skills/swiftui-render-optimization/scripts/scan_swiftui_renders.py /path/to/ios/project --format markdown -o render_scan.md
+```
+
+### 2. Severity Taxonomy
+- **Critical (View Graph Loops / Invalidation)**: Inline `@ObservedObject var vm = ViewModel()` allocations, mutating state inside `body`, `@State(initialValue:)` in `init()` desynchronization, and volatile `UUID()` keys in `ForEach`.
+- **High (Over-Invalidation / Body Bottlenecks)**: `DateFormatter()`, `JSONDecoder()`, or array `.sorted()` / `.filter()` inside `body`, `AnyView` type erasure destroying render nodes, row-level `.sheet` modifiers in loops, and unstructured `Task` leaks in `.onAppear`.
+- **Medium (Scroll Hitches / Layout Thrashing)**: Eager `VStack`/`HStack` in `ScrollView`, `GeometryReader` inside scrolling cells, and unscoped implicit `.animation()` calls without `value:`.
+- **Low (Diagnostics & Cleanups)**: Leftover `Self._printChanges()` in release builds, and missing `@ObservationIgnored` on non-UI properties in `@Observable` classes.
+
+### 3. Bundled Reference Guides & Eval Suite
+- 📖 [Identity & View Graph Mechanics](./skills/swiftui-render-optimization/references/identity-and-viewgraph.md): Structural vs explicit identity, `AnyView` diffing traps, and `.equatable()` subviews.
+- 🔄 [Observation & State Slicing](./skills/swiftui-render-optimization/references/observation-and-invalidation.md): iOS 17 `@Observable` macro vs Combine `ObservableObject`, and `@ObservationIgnored`.
+- ⏱️ [View Lifecycle & State Flow](./skills/swiftui-render-optimization/references/lifecycle-and-state-flow.md): View `init()` vs view lifetime, `.task` vs `.onAppear`, and `.onChange` state loops.
+- 📊 [Xcode Instruments Profiling Recipes](./skills/swiftui-render-optimization/references/instruments-profiling-recipes.md): SwiftUI View Body track, Core Animation commits, `Self._printChanges()`, and MetricKit hitch ratios.
+- 🧪 [Evaluation Test Suite & Benchmark](./skills/swiftui-render-optimization/evals/benchmark.md): 4-scenario benchmark covering 13 anti-patterns with 100% detection rate.
+
+---
+
 ## 🗺️ Roadmap & Planned Skills
 
 - [ ] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
-- [ ] `swiftui-render-optimization`: Identity churn, view graph invalidations, EquatableView conformance, body re-evaluations.
+- [x] `swiftui-render-optimization`: Identity churn, view graph invalidations, EquatableView conformance, body re-evaluations.
 - [ ] `coredata-swiftdata-audit`: Context concurrency violations, fault thrashing, migration safety, batching.
 - [ ] `ios-a11y-audit`: VoiceOver accessibility elements, Dynamic Type scaling, contrast ratios, assistive traits.
 
