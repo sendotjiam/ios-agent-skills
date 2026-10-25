@@ -24,6 +24,30 @@
         "Suggests static/cached DateFormatter or modern Swift FormatStyle",
         "Suggests offloading image decompression using preparingForDisplay() or background decoding"
       ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit eval3_swift6_persistence.swift for Swift 6 strict concurrency issues, unsafe Sendable escapes, and Core Data thread violations.",
+      "expected_output": "Audit report flagging @unchecked Sendable concealing mutable state data race in TokenStore, and NSManagedObject crossing actor boundary in OrderProcessor with NSManagedObjectID remediation.",
+      "files": ["evals/files/eval3_swift6_persistence.swift"],
+      "expectations": [
+        "Identifies @unchecked Sendable on TokenStore concealing unsynchronized mutable dictionary access",
+        "Identifies passing NSManagedObject across actor boundary in OrderProcessor.processOrder",
+        "Recommends actor isolation or Swift 6 Mutex / OSAllocatedUnfairLock for TokenStore",
+        "Recommends passing NSManagedObjectID and fetching on isolated background context"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit eval4_task_leak.swift for Task lifecycle issues, retain cycles, and memory leaks with AsyncSequence.",
+      "expected_output": "Audit report identifying strong self capture in infinite NotificationCenter AsyncSequence loop preventing UIViewController deallocation, with weak self and view lifecycle cancellation fixes.",
+      "files": ["evals/files/eval4_task_leak.swift"],
+      "expectations": [
+        "Identifies strong self capture in Task with infinite NotificationCenter AsyncSequence",
+        "Identifies retain cycle / memory leak preventing LiveEventViewController deallocation",
+        "Suggests [weak self] capture in Task closure",
+        "Recommends explicit cancellation of Task when view is dismissed or disappears"
+      ]
     }
   ]
 }

@@ -106,6 +106,14 @@ RULES = [
         "message": "Heavy Core Data operations on viewContext directly block the main thread.",
         "recommendation": "Use persistentContainer.newBackgroundContext() or performBackgroundTask.",
     },
+    {
+        "id": "PERSIST-002",
+        "severity": "HIGH",
+        "category": "Data Persistence Threading",
+        "pattern": re.compile(r"func\s+\w+\s*\(.*:\s*NSManagedObject\b"),
+        "message": "Passing NSManagedObject across isolation or async boundaries causes thread conflicts.",
+        "recommendation": "Pass NSManagedObjectID or PersistentIdentifier and fetch on destination context.",
+    },
     # Medium: Scroll Hitches & Allocation Churn
     {
         "id": "HITCH-001",
