@@ -139,10 +139,50 @@ python3 skills/swiftui-render-optimization/scripts/scan_swiftui_renders.py /path
 
 ---
 
+## 🔍 Skill Spotlight: `ios-codebase-cleanup`
+
+### 1. Automated CLI Fast-Scanner (`scan_codebase_cleanup.py`)
+Quickly audit your codebase for dead files, orphaned assets, unlinked docs, and unused internal symbols in <2 seconds:
+
+```bash
+# Output formatted table (non-destructive dry-run)
+python3 skills/ios-codebase-cleanup/scripts/scan_codebase_cleanup.py /path/to/ios/project
+
+# Deep symbol & import audit across active files
+python3 skills/ios-codebase-cleanup/scripts/scan_codebase_cleanup.py /path/to/ios/project --scope all
+
+# Or export structured Markdown for pull request reviews
+python3 skills/ios-codebase-cleanup/scripts/scan_codebase_cleanup.py /path/to/ios/project --format markdown -o cleanup_audit.md
+
+# Safe interactive pruning (creates git branch + cleans PBXProj references)
+python3 skills/ios-codebase-cleanup/scripts/scan_codebase_cleanup.py /path/to/ios/project --delete
+```
+
+### 2. Detection Taxonomy & Confidence Ratings
+- **Dead Swift Files (🔴 High)**: Top-level classes, structs, enums, actors with 0 project-wide occurrences. Preserves `@main`, App Delegate, and `#Preview` / `PreviewProvider` blocks.
+- **Dead Asset Catalogs (🔴 High)**: Scans `.xcassets` for orphaned `.imageset`, `.colorset`, `.appiconset`. Supports string literals (`"icon"`) and Xcode 15+ generated Swift symbols (`Image(.icon)`).
+- **Orphan Docs & Loose Media (🟡 Medium)**: Scans unlinked markdown documents and unreferenced images outside `.xcassets`.
+- **Dead Code Symbols (🔴 High)**: Scans inside active files for uncalled `private func` and unread `private let/var` declarations.
+- **Unused Framework Imports (🟡 Medium)**: Identifies framework imports with no direct symbol or prefix usage (`CG*`, `SM*`, `UTType`).
+
+### 3. Safety Guardrails & Xcode Integrity
+- **Git Branch Checkpoint**: Enforces clean working tree and auto-creates `cleanup/ios-codebase-YYYYMMDD-HHMMSS` before touching disk.
+- **PBXProj Synchronization**: Surgically strips deleted file UUIDs from `project.pbxproj` (`PBXBuildFile`, `PBXFileReference`) to prevent compiler "missing file" errors.
+- **Preview Preservation**: Treats SwiftUI `#Preview` as active usage so design-time components are never accidentally deleted.
+
+### 4. Bundled Reference Guides & Eval Suite
+- 📖 [False-Positive Avoidance Rules](./skills/ios-codebase-cleanup/references/false-positive-rules.md): Guidance on `@objc` runtime reflection, DI frameworks (Factory, Swinject), string-interpolated asset names, and multi-target projects.
+- 🔧 [Xcode PBXProj Safe Reference Removal](./skills/ios-codebase-cleanup/references/pbxproj-safe-removal.md): Deep dive into Xcode project structure and safe reference pruning commands.
+- 🧪 [Evaluation Test Suite & Benchmark](./skills/ios-codebase-cleanup/evals/benchmark.md): 4-scenario benchmark with 100% pass rate in 3.8ms.
+
+---
+
 ## 🗺️ Roadmap & Planned Skills
 
-- [ ] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
+- [x] `ios-concurrency-audit`: Hangs $\ge 250\text{ms}$, actor reentrancy, data races, deadlocks, Swift 6 strict concurrency.
 - [x] `swiftui-render-optimization`: Identity churn, view graph invalidations, EquatableView conformance, body re-evaluations.
+- [x] `ios-codebase-cleanup`: Dead files, orphaned `.xcassets`, unlinked docs, dead internal symbols, PBXProj sync.
+- [ ] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
 - [ ] `coredata-swiftdata-audit`: Context concurrency violations, fault thrashing, migration safety, batching.
 - [ ] `ios-a11y-audit`: VoiceOver accessibility elements, Dynamic Type scaling, contrast ratios, assistive traits.
 
