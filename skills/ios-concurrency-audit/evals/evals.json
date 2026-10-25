@@ -1,0 +1,29 @@
+{
+  "skill_name": "ios-concurrency-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit eval1_transfer.swift for iOS concurrency issues, main thread stalls, and actor bugs. Propose surgical fixes using modern Swift idioms.",
+      "expected_output": "Audit report flagging the main-thread synchronous file I/O in viewDidLoad and the actor reentrancy balance check bug in AccountManager, categorized by severity with surgical fixes.",
+      "files": ["evals/files/eval1_transfer.swift"],
+      "expectations": [
+        "Identifies actor reentrancy vulnerability in AccountManager.transfer",
+        "Identifies synchronous Data(contentsOf:) or JSON decoding blocking the main thread in viewDidLoad",
+        "Categorizes findings by severity tiers (Critical/High)",
+        "Provides surgical code fixes for both issues"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit eval2_feed.swift. The table view experiences noticeable scrolling hitches and mini-hangs. Pinpoint the root causes and provide remediation.",
+      "expected_output": "Audit report identifying the repeated DateFormatter allocation in cellForRowAt and main thread image decompression, classifying them as scroll hitches with modern Swift solutions.",
+      "files": ["evals/files/eval2_feed.swift"],
+      "expectations": [
+        "Identifies DateFormatter instantiation in cell configuration as a scroll hitch / allocation hazard",
+        "Identifies synchronous UIImage(data:) decompression on main thread",
+        "Suggests static/cached DateFormatter or modern Swift FormatStyle",
+        "Suggests offloading image decompression using preparingForDisplay() or background decoding"
+      ]
+    }
+  ]
+}
