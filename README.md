@@ -213,13 +213,46 @@ python3 skills/ios-memory-leak-audit/scripts/scan_memory_leaks.py /path/to/ios/p
 
 ---
 
+## 🔍 Skill Spotlight: `coredata-swiftdata-audit`
+
+### 1. Automated CLI Fast-Scanner (`scan_coredata_swiftdata.py`)
+Audit your persistence layer for context concurrency hazards, fault thrashing, and CloudKit sync violations in <5ms:
+
+```bash
+# Output formatted colored table
+python3 skills/coredata-swiftdata-audit/scripts/scan_coredata_swiftdata.py /path/to/ios/project
+
+# Export structured Markdown report for pull requests or reviews
+python3 skills/coredata-swiftdata-audit/scripts/scan_coredata_swiftdata.py /path/to/ios/project --format markdown -o persistence_audit.md
+
+# Machine-readable JSON output for CI quality gates
+python3 skills/coredata-swiftdata-audit/scripts/scan_coredata_swiftdata.py /path/to/ios/project --format json
+```
+
+### 2. Detection Taxonomy & Severity Tiers
+- **🔴 Critical (Concurrency Violations & CloudKit Sync Failure)**: Context operations outside `perform`/`performAndWait`, raw model passing across `Task` or actor boundaries, unisolated `ModelContext` initialization, `mainContext` misuse in background tasks, CloudKit relationships missing reciprocal `inverse:`, and `@Attribute(.unique)` on CloudKit-synced models.
+- **🟠 High (Batch Inefficiency & Memory Bloat)**: Deleting records in loops instead of `NSBatchDeleteRequest` / SwiftData 18 `delete(model:where:)`, bulk ingestion loops saving without `@autoreleasepool` and `context.reset()`, missing `automaticallyMergesChangesFromParent = true`, and inline binary `Data` > 1MB.
+- **🟡 Medium (Fault Thrashing & Reactive View Churn)**: Nested relationship traversal in loops without `relationshipKeyPathsForPrefetching`, `NSFetchRequest` lacking `fetchBatchSize`, dynamic `@Query` predicates bound to text input without debouncing, and `@Model` UI state lacking `@Transient`.
+- **🔵 Low (Store Hygiene & Startup Latency)**: Synchronous `loadPersistentStores` blocking app launch on main thread, disk-backed `ModelContainer` leaks in `#Preview`, and unversioned schema modifications.
+
+### 3. Bundled Reference Guides & Production Recipes
+- 📖 [Concurrency, Thread Confinement & @ModelActor](./skills/coredata-swiftdata-audit/references/concurrency-and-modelactor.md): Queue confinement vs `@ModelActor`, thread-safe `NSManagedObjectID` and `PersistentIdentifier` passing, and `-com.apple.CoreData.ConcurrencyDebug 1`.
+- ⚡ [Fault Thrashing, Prefetching & N+1 Queries](./skills/coredata-swiftdata-audit/references/fault-thrashing-and-prefetching.md): Fault mechanics, `relationshipKeyPathsForPrefetching`, `fetchBatchSize` tuning (2x-3x visible rows), and DTO projections.
+- 📦 [Batch Operations & Memory Reclamation](./skills/coredata-swiftdata-audit/references/batch-operations-and-memory.md): `NSBatchDeleteRequest`, `NSBatchInsertRequest`, SwiftData 18 batch operations, chunked imports with `context.reset()`.
+- ☁️ [CloudKit Sync Constraints & Multi-Context Sync](./skills/coredata-swiftdata-audit/references/cloudkit-sync-and-multi-context.md): Mandatory inverses, unique constraint prohibitions, optional attributes with defaults, and `automaticallyMergesChangesFromParent`.
+- 🔄 [Migration Safety & SchemaMigrationPlans](./skills/coredata-swiftdata-audit/references/migration-safety-and-schemaplans.md): Lightweight vs custom migrations, `VersionedSchema`, `MigrationStage` chains, and asynchronous store loading to avoid `0x8badf00d` watchdog kills.
+- 🛠️ [Instruments & SQL Tracing Diagnostics](./skills/coredata-swiftdata-audit/references/instruments-and-sql-tracing.md): `-com.apple.CoreData.SQLDebug 3` interpretation, Xcode Instruments Core Data template (Faults/Fetches/Saves), and SQLite WAL runaway prevention.
+- 🧪 [Evaluation Test Suite & Benchmark](./skills/coredata-swiftdata-audit/evals/benchmark.md): 4-scenario benchmark covering 17 persistence rules with 100% detection rate in 4.55ms.
+
+---
+
 ## 🗺️ Roadmap & Planned Skills
 
 - [x] `ios-concurrency-audit`: Hangs $\ge 250\text{ms}$, actor reentrancy, data races, deadlocks, Swift 6 strict concurrency.
 - [x] `swiftui-render-optimization`: Identity churn, view graph invalidations, EquatableView conformance, body re-evaluations.
 - [x] `ios-codebase-cleanup`: Dead files, orphaned `.xcassets`, unlinked docs, dead internal symbols, PBXProj sync.
 - [x] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
-- [ ] `coredata-swiftdata-audit`: Context concurrency violations, fault thrashing, migration safety, batching.
+- [x] `coredata-swiftdata-audit`: Context concurrency violations, fault thrashing, migration safety, batching, CloudKit sync.
 - [ ] `ios-a11y-audit`: VoiceOver accessibility elements, Dynamic Type scaling, contrast ratios, assistive traits.
 
 ---

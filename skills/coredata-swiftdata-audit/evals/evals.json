@@ -1,0 +1,57 @@
+{
+  "skill_name": "coredata-swiftdata-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit ConcurrencyViolations.swift for Core Data and SwiftData concurrency violations, thread confinement breaks, and unisolated model operations.",
+      "expected_output": "Audit report identifying unconfined context access on background queues, detached task context leaks, viewContext accessed outside MainActor, unisolated ModelContext, and mainContext access in background Tasks.",
+      "files": ["evals/files/ConcurrencyViolations.swift"],
+      "expectations": [
+        "Identifies CD_THREAD_UNCONFINED_ACCESS for context operations on background queue without perform",
+        "Identifies CD_TASK_DETACHED_CONTEXT_LEAK for unconfined context operations across Task.detached",
+        "Identifies CD_VIEWCONTEXT_BACKGROUND_ACCESS for viewContext access in async method without @MainActor",
+        "Identifies SWIFTDATA_UNISOLATED_MODEL_CONTEXT for ModelContext initialization without @ModelActor",
+        "Identifies SWIFTDATA_MAINCONTEXT_IN_TASK for container.mainContext access inside detached task",
+        "Recommends context.perform, passing PersistentIdentifier/NSManagedObjectID, and @ModelActor workers"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit FaultThrashingNPlusOne.swift for Core Data fault thrashing, missing fetch batch sizes, and reactive SwiftUI query churn.",
+      "expected_output": "Audit report flagging NSFetchRequest executed without fetchBatchSize, nested relationship loop traversal causing N+1 query trips, and un-debounced searchable queries.",
+      "files": ["evals/files/FaultThrashingNPlusOne.swift"],
+      "expectations": [
+        "Identifies CD_FETCH_MISSING_BATCH_SIZE for NSFetchRequest lacking fetchBatchSize",
+        "Identifies CD_FAULT_THRASHING_N_PLUS_ONE for nested relationship traversal in loop",
+        "Identifies REACTIVE_QUERY_SEARCH_THRASH for .searchable bound directly to dynamic @Query without debounce",
+        "Recommends setting fetchBatchSize = 20, relationshipKeyPathsForPrefetching, and debounced search state"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit BatchingAndMemoryBloat.swift for row-by-row batch loops, memory bloat, and missing multi-context auto-merging.",
+      "expected_output": "Audit report identifying row-by-row deletions in loop, bulk insertion loops without context.reset(), and newBackgroundContext() lacking automaticallyMergesChangesFromParent.",
+      "files": ["evals/files/BatchingAndMemoryBloat.swift"],
+      "expectations": [
+        "Identifies CD_LOOP_ROW_BY_ROW_DELETE for loop calling context.delete() on individual objects",
+        "Identifies CD_UNBOUNDED_BATCH_IMPORT for loop saves without context.reset() or @autoreleasepool",
+        "Identifies CD_MISSING_AUTO_MERGE for newBackgroundContext() without automaticallyMergesChangesFromParent",
+        "Recommends NSBatchDeleteRequest/SwiftData batch delete, chunked reset loops, and auto-merge configuration"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit CloudKitAndMultiContextViolations.swift for CloudKit relationship inverse omissions, unique constraint traps, inline binary bloat, and synchronous store loads.",
+      "expected_output": "Audit report identifying CloudKit relationship missing inverse, @Attribute(.unique) conflict, inline binary data without external storage, preview disk container leaks, and synchronous store loading.",
+      "files": ["evals/files/CloudKitAndMultiContextViolations.swift"],
+      "expectations": [
+        "Identifies CLOUDKIT_MISSING_RELATIONSHIP_INVERSE for @Relationship lacking explicit inverse",
+        "Identifies CLOUDKIT_UNSUPPORTED_UNIQUE_CONSTRAINT for @Attribute(.unique) on CloudKit-synced model",
+        "Identifies PERSISTENCE_LARGE_BINARY_INLINE for Data property without @Attribute(.externalStorage)",
+        "Identifies SWIFTDATA_UNMARKED_TRANSIENT_PROPERTY for UI state property in @Model without @Transient",
+        "Identifies PERSISTENCE_PREVIEW_DISK_LEAK for #Preview initializing disk ModelContainer",
+        "Identifies CD_SYNCHRONOUS_STORE_LOAD for synchronous loadPersistentStores on main thread"
+      ]
+    }
+  ]
+}
