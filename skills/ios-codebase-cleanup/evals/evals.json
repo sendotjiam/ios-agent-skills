@@ -1,0 +1,52 @@
+{
+  "skill_name": "ios-codebase-cleanup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit eval1_dead_files for unused Swift source files, ensuring SwiftUI preview files and active dependencies are preserved.",
+      "expected_output": "Audit report identifying DeadLegacyHelper.swift as a dead file with 0 references, while preserving ActiveService.swift, ActiveView.swift, and PreviewCardView.swift (#Preview preserved).",
+      "files": ["evals/files/eval1_dead_files"],
+      "expectations": [
+        "Identifies DeadLegacyHelper.swift as dead file (0 references)",
+        "Does NOT flag ActiveService.swift (used by ActiveView.swift)",
+        "Does NOT flag PreviewCardView.swift (#Preview is preserved as valid usage)",
+        "Assigns High confidence rating to DeadLegacyHelper.swift"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit eval2_dead_assets for unused asset catalogs, checking string literals and modern Swift asset symbols.",
+      "expected_output": "Audit report identifying zombie_banner.imageset and dead_brand_color.colorset as unreferenced, while keeping app_logo.imageset (referenced via Image(.appLogo)).",
+      "files": ["evals/files/eval2_dead_assets"],
+      "expectations": [
+        "Identifies zombie_banner.imageset as dead asset",
+        "Identifies dead_brand_color.colorset as dead asset",
+        "Does NOT flag app_logo.imageset (referenced via .appLogo symbol)",
+        "Calculates reclaimable disk space for dead asset folders"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit eval3_orphan_docs for unreferenced markdown documentation and dead media assets.",
+      "expected_output": "Audit report identifying docs/abandoned_v1_notes.md as an orphan document and docs/dead_screenshot.png as unlinked media, while keeping docs/architecture.md.",
+      "files": ["evals/files/eval3_orphan_docs"],
+      "expectations": [
+        "Identifies docs/abandoned_v1_notes.md as unlinked markdown file",
+        "Identifies docs/dead_screenshot.png as unreferenced image asset",
+        "Does NOT flag docs/architecture.md (linked in README.md)"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit eval4_symbols_and_imports with --scope symbols,imports for dead private functions, properties, and unused framework imports.",
+      "expected_output": "Audit report identifying unused CoreLocation import, dead private func legacyCryptoHasher(), and unused private let unusedSecretSeed in PaymentManager.swift.",
+      "files": ["evals/files/eval4_symbols_and_imports"],
+      "expectations": [
+        "Identifies CoreLocation as an unused framework import",
+        "Identifies private func legacyCryptoHasher() as uncalled within file",
+        "Identifies private let unusedSecretSeed as unread within file",
+        "Does NOT flag Foundation or public process() method"
+      ]
+    }
+  ]
+}

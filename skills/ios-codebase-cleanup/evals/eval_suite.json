@@ -1,0 +1,68 @@
+{
+  "skill": "ios-codebase-cleanup",
+  "version": "1.0.0",
+  "eval_cases": [
+    {
+      "id": "eval_dead_swift_file",
+      "description": "Verify detection of an unreferenced Swift class/struct with zero external calls",
+      "fixture": {
+        "file": "Sources/DeadHelper.swift",
+        "content": "struct DeadHelper {\n    static func unused() {}\n}"
+      },
+      "expected_result": {
+        "identified_as_dead": true,
+        "confidence": "High",
+        "category": "dead_files"
+      }
+    },
+    {
+      "id": "eval_preview_preservation",
+      "description": "Verify that a Swift view containing #Preview or PreviewProvider is NOT flagged as dead",
+      "fixture": {
+        "file": "Sources/PreviewCard.swift",
+        "content": "import SwiftUI\nstruct PreviewCard: View {\n    var body: some View { Text(\"Hi\") }\n}\n#Preview {\n    PreviewCard()\n}"
+      },
+      "expected_result": {
+        "identified_as_dead": false
+      }
+    },
+    {
+      "id": "eval_dead_asset_catalog",
+      "description": "Verify detection of an unused .imageset asset",
+      "fixture": {
+        "folder": "Assets.xcassets/deprecated_icon.imageset",
+        "references_in_code": 0
+      },
+      "expected_result": {
+        "identified_as_dead": true,
+        "confidence": "High",
+        "category": "dead_assets"
+      }
+    },
+    {
+      "id": "eval_orphan_markdown_file",
+      "description": "Verify detection of an unlinked markdown document not in README",
+      "fixture": {
+        "file": "docs/legacy_notes.md",
+        "linked_in_readme": false
+      },
+      "expected_result": {
+        "identified_as_dead": true,
+        "confidence": "Medium",
+        "category": "dead_docs"
+      }
+    },
+    {
+      "id": "eval_dead_internal_symbol",
+      "description": "Verify detection of unused private function inside an active file with --scope symbols",
+      "fixture": {
+        "file": "Sources/ActiveService.swift",
+        "content": "class ActiveService {\n    private func deadInternalHelper() {}\n    func run() {}\n}"
+      },
+      "expected_result": {
+        "identified_symbol": "private func deadInternalHelper()",
+        "category": "dead_symbols"
+      }
+    }
+  ]
+}

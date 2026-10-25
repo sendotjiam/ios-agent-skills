@@ -18,6 +18,7 @@ A curated collection of production-grade agentic AI skills for iOS, iPadOS, macO
 | :--- | :--- | :--- | :--- |
 | **`ios-concurrency-audit`** | Performance & Concurrency | [`skills/ios-concurrency-audit`](./skills/ios-concurrency-audit) | Audits codebases for severe hangs ($\ge 250\text{ms}$), mini-hangs/hitches ($16-250\text{ms}$), main-thread blocking calls, actor reentrancy hazards, data races, deadlocks, Swift 6 unsafety, and cooperative thread pool starvation across Swift Concurrency and GCD. |
 | **`swiftui-render-optimization`** | UI/UX & Render Performance | [`skills/swiftui-render-optimization`](./skills/swiftui-render-optimization) | Audits and optimizes SwiftUI view hierarchies for 120fps/60fps smoothness. Detects view graph invalidations, identity churn (structural vs explicit, AnyView), observation over-invalidation (@Observable vs ObservableObject), main-thread body computation, layout thrashing, and lifecycle anti-patterns. |
+| **`ios-codebase-cleanup`** | Architecture & Maintenance | [`skills/ios-codebase-cleanup`](./skills/ios-codebase-cleanup) | Audits and safely purges dead Swift files, orphaned asset catalogs (`.imageset`, `.colorset`, `.appiconset`), dead documentation (`.md`, loose media), dead internal code symbols, and unused imports. Includes Xcode PBXProj synchronization and git tracking safety checkpoints. |
 
 ---
 
@@ -62,6 +63,7 @@ git clone https://github.com/sendotjiam/ios-skills.git ~/Documents/ios-skills
 # 2. Symlink skills into your agent hub
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.agents/skills/ios-concurrency-audit
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.agents/skills/swiftui-render-optimization
+ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.agents/skills/ios-codebase-cleanup
 
 # 3. Synchronize across Antigravity, Claude Code, and Codex
 ~/.agents/sync-skills.sh
@@ -71,12 +73,14 @@ ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.agents/skills
 ```bash
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.claude/skills/ios-concurrency-audit
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.claude/skills/swiftui-render-optimization
+ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.claude/skills/ios-codebase-cleanup
 ```
 
 ### Option 3: Codex Direct
 ```bash
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.codex/skills/ios-concurrency-audit
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.codex/skills/swiftui-render-optimization
+ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.codex/skills/ios-codebase-cleanup
 ```
 
 ---
