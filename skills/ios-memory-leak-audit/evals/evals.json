@@ -1,0 +1,55 @@
+{
+  "skill_name": "ios-memory-leak-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit eval1_combine_closures.swift for ARC retain cycles and memory leak hazards across closures and Combine subscriptions.",
+      "expected_output": "Audit report identifying Combine assign(to:on: self), .sink without weak self, and closure property strong retention, categorized by severity with surgical fixes.",
+      "files": ["evals/files/eval1_combine_closures.swift"],
+      "expectations": [
+        "Identifies Combine assign(to:on: self) as a critical retain cycle",
+        "Identifies Combine .sink closure capturing self strongly without [weak self]",
+        "Identifies escaping closure property onProfileUpdated capturing self strongly",
+        "Provides surgical code fixes using [weak self] and assign(to: &$username)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit eval2_delegates_timers_gcd.swift for memory leaks, delegate cycles, timer retain hazards, and delayed GCD retention.",
+      "expected_output": "Audit report flagging strong delegate property, Timer.scheduledTimer with strong target, DispatchSourceTimer retain cycle, and asyncAfter delayed retention.",
+      "files": ["evals/files/eval2_delegates_timers_gcd.swift"],
+      "expectations": [
+        "Identifies strong delegate property missing 'weak' keyword",
+        "Identifies repeating Timer.scheduledTimer retaining self in RunLoop",
+        "Identifies DispatchSourceTimer setEventHandler capturing self strongly",
+        "Identifies DispatchQueue.main.asyncAfter retaining self across long delay",
+        "Recommends weak delegate, block-based Timer/WeakProxy, and weak self captures"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit eval3_autorelease_bloat.swift for memory bloat, high-water mark loops, unbounded caches, and Core Data fault accumulation.",
+      "expected_output": "Audit report identifying missing @autoreleasepool in image batch processing, unbounded dictionary cache, and Core Data batch loop without context.reset().",
+      "files": ["evals/files/eval3_autorelease_bloat.swift"],
+      "expectations": [
+        "Identifies batch photo processing loop lacking @autoreleasepool causing JetSam risk",
+        "Identifies unbounded dictionary cache used instead of NSCache",
+        "Identifies Core Data fetch loop lacking context.reset() or refreshAllObjects()",
+        "Recommends @autoreleasepool wrapping, NSCache migration, and batch context resets"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit eval4_concurrency_cf_webkit.swift for WebKit script message handler leaks, discarded observer tokens, and unmanaged CoreFoundation leaks.",
+      "expected_output": "Audit report identifying WKUserContentController retaining self, AVPlayer time observer token discard, NotificationCenter token discard, and Unmanaged.passRetained without release.",
+      "files": ["evals/files/eval4_concurrency_cf_webkit.swift"],
+      "expectations": [
+        "Identifies WKUserContentController.add(self) permanent UIViewController leak",
+        "Identifies AVPlayer.addPeriodicTimeObserver token discarded without teardown",
+        "Identifies NotificationCenter.default.addObserver token discard",
+        "Identifies Unmanaged.passRetained pointer allocation without matching release",
+        "Provides WeakScriptMessageHandler, token storage, and pointer release solutions"
+      ]
+    }
+  ]
+}

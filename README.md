@@ -19,6 +19,7 @@ A curated collection of production-grade agentic AI skills for iOS, iPadOS, macO
 | **`ios-concurrency-audit`** | Performance & Concurrency | [`skills/ios-concurrency-audit`](./skills/ios-concurrency-audit) | Audits codebases for severe hangs ($\ge 250\text{ms}$), mini-hangs/hitches ($16-250\text{ms}$), main-thread blocking calls, actor reentrancy hazards, data races, deadlocks, Swift 6 unsafety, and cooperative thread pool starvation across Swift Concurrency and GCD. |
 | **`swiftui-render-optimization`** | UI/UX & Render Performance | [`skills/swiftui-render-optimization`](./skills/swiftui-render-optimization) | Audits and optimizes SwiftUI view hierarchies for 120fps/60fps smoothness. Detects view graph invalidations, identity churn (structural vs explicit, AnyView), observation over-invalidation (@Observable vs ObservableObject), main-thread body computation, layout thrashing, and lifecycle anti-patterns. |
 | **`ios-codebase-cleanup`** | Architecture & Maintenance | [`skills/ios-codebase-cleanup`](./skills/ios-codebase-cleanup) | Audits and safely purges dead Swift files, orphaned asset catalogs (`.imageset`, `.colorset`, `.appiconset`), dead documentation (`.md`, loose media), dead internal code symbols, and unused imports. Includes Xcode PBXProj synchronization and git tracking safety checkpoints. |
+| **`ios-memory-leak-audit`** | Memory & ARC Diagnostics | [`skills/ios-memory-leak-audit`](./skills/ios-memory-leak-audit) | Audits codebases for ARC retain cycles (closures, delegates, Combine `assign(to:on:)`), target-action leaks (`Timer`, `CADisplayLink`), WebKit/AVFoundation observers, memory bloat (missing `@autoreleasepool`, raw image decoding, Core Data context bloat), GCD delays, and unmanaged CoreFoundation leaks. |
 
 ---
 
@@ -64,6 +65,7 @@ git clone https://github.com/sendotjiam/ios-skills.git ~/Documents/ios-skills
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.agents/skills/ios-concurrency-audit
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.agents/skills/swiftui-render-optimization
 ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.agents/skills/ios-codebase-cleanup
+ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.agents/skills/ios-memory-leak-audit
 
 # 3. Synchronize across Antigravity, Claude Code, and Codex
 ~/.agents/sync-skills.sh
@@ -74,6 +76,7 @@ ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.agents/skills/ios-co
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.claude/skills/ios-concurrency-audit
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.claude/skills/swiftui-render-optimization
 ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.claude/skills/ios-codebase-cleanup
+ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.claude/skills/ios-memory-leak-audit
 ```
 
 ### Option 3: Codex Direct
@@ -81,6 +84,7 @@ ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.claude/skills/ios-co
 ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.codex/skills/ios-concurrency-audit
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.codex/skills/swiftui-render-optimization
 ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.codex/skills/ios-codebase-cleanup
+ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.codex/skills/ios-memory-leak-audit
 ```
 
 ---
@@ -177,12 +181,44 @@ python3 skills/ios-codebase-cleanup/scripts/scan_codebase_cleanup.py /path/to/io
 
 ---
 
+## 🔍 Skill Spotlight: `ios-memory-leak-audit`
+
+### 1. Automated CLI Fast-Scanner (`scan_memory_leaks.py`)
+Quickly audit your codebase for ARC retain cycles, memory bloat, and observer leaks in <1 second:
+
+```bash
+# Output formatted table
+python3 skills/ios-memory-leak-audit/scripts/scan_memory_leaks.py /path/to/ios/project
+
+# Or export structured Markdown for pull request reviews
+python3 skills/ios-memory-leak-audit/scripts/scan_memory_leaks.py /path/to/ios/project --format markdown -o memory_leak_audit.md
+
+# Machine-readable JSON output for CI pipelines
+python3 skills/ios-memory-leak-audit/scripts/scan_memory_leaks.py /path/to/ios/project --format json
+```
+
+### 2. Detection Taxonomy & Severity Tiers
+- **Critical (Permanent Retain Cycles & ARC Leaks)**: Strong delegate properties missing `weak`, Combine `assign(to:on: self)` retain cycles, `Timer.scheduledTimer` with strong `target: self`, `WKUserContentController.add(self)` WebKit leaks, and unbalanced `Unmanaged.passRetained` allocations.
+- **High (Memory Bloat & JetSam / OOM Crash Risk)**: Batch loops processing `UIImage`, `CIImage`, or `Data` without `@autoreleasepool`, full-resolution image decoding without downsampling, unbounded `Dictionary` caches instead of `NSCache`, and Core Data batch loops without `context.reset()`.
+- **Medium (Zombie Tasks & Subscription Leaks)**: Combine `.sink` without `[weak self]`, `NotificationCenter.default.addObserver` with discarded tokens, `AVPlayer.addPeriodicTimeObserver` without token tracking, `DispatchSourceTimer` event handler cycles, and delayed `asyncAfter` closures retaining `UIViewController`.
+- **Low (Scope Hygiene)**: Redundant closure captures and over-scoped closures where non-escaping patterns suffice.
+
+### 3. Bundled Reference Guides & Production Recipes
+- 📖 [Retain Cycles, Closures & Concurrency](./skills/ios-memory-leak-audit/references/retain-cycles-and-closures.md): `[weak self]` vs `[unowned self]`, weak delegates, Combine pipelines, GCD delays, and detached Task retain traps.
+- 🌊 [Memory Bloat, Autorelease Pools & JetSam](./skills/ios-memory-leak-audit/references/memory-bloat-and-autorelease.md): RunLoop mechanics, `@autoreleasepool` in loops, `CGImageSourceCreateThumbnailAtIndex` downsampling, and Core Data fault management.
+- 🌐 [WebKit & System Observers](./skills/ios-memory-leak-audit/references/webkit-and-system-observers.md): `WeakScriptMessageHandler` proxy, `AVPlayer` periodic time observers, and `NotificationCenter` tokens.
+- 🛠️ [Runtime Memory Profiling Recipes](./skills/ios-memory-leak-audit/references/instruments-memory-debugging.md): Xcode Memory Graph Debugger (`MallocStackLoggingNoCompact=1`), Instruments Allocations **Mark Generation**, and CLI `leaks`/`vmmap`.
+- 🧪 [Automated CI Memory Leak Testing](./skills/ios-memory-leak-audit/references/automated-leak-testing.md): Drop-in `XCTestCase.trackForMemoryLeaks` helper and modern Swift 6 `Testing` deallocation assertions.
+- 📊 [Evaluation Test Suite & Benchmark](./skills/ios-memory-leak-audit/evals/benchmark.md): 4-scenario benchmark covering 13 memory hazard signatures with 100% detection rate in 4.02ms.
+
+---
+
 ## 🗺️ Roadmap & Planned Skills
 
 - [x] `ios-concurrency-audit`: Hangs $\ge 250\text{ms}$, actor reentrancy, data races, deadlocks, Swift 6 strict concurrency.
 - [x] `swiftui-render-optimization`: Identity churn, view graph invalidations, EquatableView conformance, body re-evaluations.
 - [x] `ios-codebase-cleanup`: Dead files, orphaned `.xcassets`, unlinked docs, dead internal symbols, PBXProj sync.
-- [ ] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
+- [x] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
 - [ ] `coredata-swiftdata-audit`: Context concurrency violations, fault thrashing, migration safety, batching.
 - [ ] `ios-a11y-audit`: VoiceOver accessibility elements, Dynamic Type scaling, contrast ratios, assistive traits.
 
