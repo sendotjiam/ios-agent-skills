@@ -20,6 +20,8 @@ A curated collection of production-grade agentic AI skills for iOS, iPadOS, macO
 | **`swiftui-render-optimization`** | UI/UX & Render Performance | [`skills/swiftui-render-optimization`](./skills/swiftui-render-optimization) | Audits and optimizes SwiftUI view hierarchies for 120fps/60fps smoothness. Detects view graph invalidations, identity churn (structural vs explicit, AnyView), observation over-invalidation (@Observable vs ObservableObject), main-thread body computation, layout thrashing, and lifecycle anti-patterns. |
 | **`ios-codebase-cleanup`** | Architecture & Maintenance | [`skills/ios-codebase-cleanup`](./skills/ios-codebase-cleanup) | Audits and safely purges dead Swift files, orphaned asset catalogs (`.imageset`, `.colorset`, `.appiconset`), dead documentation (`.md`, loose media), dead internal code symbols, and unused imports. Includes Xcode PBXProj synchronization and git tracking safety checkpoints. |
 | **`ios-memory-leak-audit`** | Memory & ARC Diagnostics | [`skills/ios-memory-leak-audit`](./skills/ios-memory-leak-audit) | Audits codebases for ARC retain cycles (closures, delegates, Combine `assign(to:on:)`), target-action leaks (`Timer`, `CADisplayLink`), WebKit/AVFoundation observers, memory bloat (missing `@autoreleasepool`, raw image decoding, Core Data context bloat), GCD delays, and unmanaged CoreFoundation leaks. |
+| **`coredata-swiftdata-audit`** | Persistence & Data Architecture | [`skills/coredata-swiftdata-audit`](./skills/coredata-swiftdata-audit) | Audits Core Data and SwiftData stacks for context concurrency hazards (`perform`/`performAndWait`), fault thrashing, batch delete/insert inefficiencies, CloudKit sync constraints, schema migration safety, and SQL query performance. |
+| **`ios-a11y-audit`** | Accessibility & Assistive Tech | [`skills/ios-a11y-audit`](./skills/ios-a11y-audit) | Audits SwiftUI and UIKit view hierarchies for VoiceOver tree integrity (unlabelled buttons, grouping, rotors), Dynamic Type text clipping, `@ScaledMetric`, 44x44pt tap target minimums, WCAG 2.1 AA/AAA color contrast, assistive traits, sensory adaptations (Reduce Motion, Reduce Transparency, Differentiate Without Color), Smart Invert, and Xcode 15+ automated tests (`performAccessibilityAudit`). |
 
 ---
 
@@ -66,6 +68,8 @@ ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.agents/skills/ios-c
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.agents/skills/swiftui-render-optimization
 ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.agents/skills/ios-codebase-cleanup
 ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.agents/skills/ios-memory-leak-audit
+ln -s ~/Documents/ios-skills/skills/coredata-swiftdata-audit ~/.agents/skills/coredata-swiftdata-audit
+ln -s ~/Documents/ios-skills/skills/ios-a11y-audit ~/.agents/skills/ios-a11y-audit
 
 # 3. Synchronize across Antigravity, Claude Code, and Codex
 ~/.agents/sync-skills.sh
@@ -77,6 +81,8 @@ ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.claude/skills/ios-c
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.claude/skills/swiftui-render-optimization
 ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.claude/skills/ios-codebase-cleanup
 ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.claude/skills/ios-memory-leak-audit
+ln -s ~/Documents/ios-skills/skills/coredata-swiftdata-audit ~/.claude/skills/coredata-swiftdata-audit
+ln -s ~/Documents/ios-skills/skills/ios-a11y-audit ~/.claude/skills/ios-a11y-audit
 ```
 
 ### Option 3: Codex Direct
@@ -85,6 +91,8 @@ ln -s ~/Documents/ios-skills/skills/ios-concurrency-audit ~/.codex/skills/ios-co
 ln -s ~/Documents/ios-skills/skills/swiftui-render-optimization ~/.codex/skills/swiftui-render-optimization
 ln -s ~/Documents/ios-skills/skills/ios-codebase-cleanup ~/.codex/skills/ios-codebase-cleanup
 ln -s ~/Documents/ios-skills/skills/ios-memory-leak-audit ~/.codex/skills/ios-memory-leak-audit
+ln -s ~/Documents/ios-skills/skills/coredata-swiftdata-audit ~/.codex/skills/coredata-swiftdata-audit
+ln -s ~/Documents/ios-skills/skills/ios-a11y-audit ~/.codex/skills/ios-a11y-audit
 ```
 
 ---
@@ -246,6 +254,39 @@ python3 skills/coredata-swiftdata-audit/scripts/scan_coredata_swiftdata.py /path
 
 ---
 
+## 🔍 Skill Spotlight: `ios-a11y-audit`
+
+### 1. Automated CLI Fast-Scanner (`scan_a11y.py`)
+Audit your SwiftUI and UIKit view hierarchies for accessibility non-compliance, VoiceOver blockers, and Dynamic Type clipping in <5ms:
+
+```bash
+# Output formatted colored table
+python3 skills/ios-a11y-audit/scripts/scan_a11y.py /path/to/ios/project
+
+# Export structured Markdown report for pull requests or reviews
+python3 skills/ios-a11y-audit/scripts/scan_a11y.py /path/to/ios/project --format markdown -o a11y_report.md
+
+# Machine-readable JSON output for CI quality gates
+python3 skills/ios-a11y-audit/scripts/scan_a11y.py /path/to/ios/project --format json
+```
+
+### 2. Detection Taxonomy & Severity Tiers
+- **🔴 Critical (Screen Reader Blockers & Text Clipping)**: Unlabelled icon buttons (`Image(systemName:)` with zero label), rigid `.frame(height: N)` text containers clipping at AX font sizes, sub-30pt tap targets, severe contrast failures ($< 3.0:1$), and gesture-only traps lacking accessible actions.
+- **🟠 High (Navigation Hazards & Structural Impediments)**: Looping `.repeatForever()` animations ignoring `accessibilityReduceMotion`, translucent `.ultraThinMaterial` backgrounds lacking `accessibilityReduceTransparency` fallbacks, red/green status indicators violating Differentiate Without Color, custom views with `.onTapGesture` missing `.accessibilityAddTraits(.isButton)`, horizontal stacks refusing to wrap at AX sizes, and sub-44pt touch targets.
+- **🟡 Medium (Suboptimal Experience & Sensory Gaps)**: Fixed `CGFloat` layout properties missing `@ScaledMetric`, photo/video components missing `accessibilityIgnoresInvertColors(true)` under Smart Invert, Swift Charts lacking `AXChartDescriptor` audio graphs, and hardcoded RGB colors risking contrast failures in Dark Mode.
+- **🔵 Low (Hygiene & Polish)**: Redundant trait words in accessibility labels (e.g. `"Dismiss button"` causing VoiceOver to announce *"Dismiss button, button"*), and fragmented element reading order.
+
+### 3. Bundled Reference Guides & Production Recipes
+- 🗣️ [VoiceOver Tree, Rotors & Traits](./skills/ios-a11y-audit/references/voiceover-tree-and-rotors.md): Semantic element grouping (`.accessibilityElement(children: .combine)`), custom rotors, discrete custom actions, Voice Control (`accessibilityInputLabels`), and assistive traits.
+- 🔠 [Dynamic Type, @ScaledMetric & AX Layouts](./skills/ios-a11y-audit/references/dynamic-type-and-scaled-metric.md): `@ScaledMetric(relativeTo:)`, eliminating fixed-height clipping, layout adaptation with `ViewThatFits` and `dynamicTypeSize`, and UIKit `UIFontMetrics`.
+- 🎯 [Hit Targets & Touch Handling](./skills/ios-a11y-audit/references/hit-targets-and-touch-handling.md): $44\times 44\text{pt}$ Apple HIG & WCAG 2.5.5 minimums, `.contentShape(Rectangle())` touch expansion, UIKit `touchAreaInsets`, and motor accessibility.
+- 🎨 [WCAG Contrast & Color Independence](./skills/ios-a11y-audit/references/wcag-contrast-and-color.md): WCAG 2.1 AA/AAA contrast ratios ($4.5:1$ / $3:1$), dynamic semantic system colors, `accessibilityContrast` High Contrast mode, and Differentiate Without Color.
+- 🧘 [Sensory Adaptations: Motion, Materials & Smart Invert](./skills/ios-a11y-audit/references/sensory-motion-and-materials.md): Vestibular protection via `accessibilityReduceMotion`, solid fallbacks for `accessibilityReduceTransparency`, and Smart Invert protection via `accessibilityIgnoresInvertColors`.
+- 📊 [Automated Testing & Swift Charts Audio Graphs](./skills/ios-a11y-audit/references/automated-a11y-testing-and-charts.md): Xcode 15+ `performAccessibilityAudit(for: [...])`, Swift Charts `AXChartDescriptor` data sonification, preview matrices, and CI/CD GitHub Actions.
+- 🧪 [Evaluation Test Suite & Benchmark](./skills/ios-a11y-audit/evals/benchmark.md): 3-scenario evaluation suite covering 13 accessibility rules with 100% detection rate and 0% false positives in 4.1ms.
+
+---
+
 ## 🗺️ Roadmap & Planned Skills
 
 - [x] `ios-concurrency-audit`: Hangs $\ge 250\text{ms}$, actor reentrancy, data races, deadlocks, Swift 6 strict concurrency.
@@ -253,7 +294,7 @@ python3 skills/coredata-swiftdata-audit/scripts/scan_coredata_swiftdata.py /path
 - [x] `ios-codebase-cleanup`: Dead files, orphaned `.xcassets`, unlinked docs, dead internal symbols, PBXProj sync.
 - [x] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
 - [x] `coredata-swiftdata-audit`: Context concurrency violations, fault thrashing, migration safety, batching, CloudKit sync.
-- [ ] `ios-a11y-audit`: VoiceOver accessibility elements, Dynamic Type scaling, contrast ratios, assistive traits.
+- [x] `ios-a11y-audit`: VoiceOver accessibility elements, Dynamic Type scaling, contrast ratios, assistive traits, sensory adaptations, Smart Invert.
 
 ---
 

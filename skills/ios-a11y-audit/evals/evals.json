@@ -1,0 +1,45 @@
+{
+  "skill_name": "ios-a11y-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit ViolationsView.swift for accessibility issues, VoiceOver blockers, Dynamic Type clipping, touch target violations, and WCAG contrast hazards.",
+      "expected_output": "Comprehensive accessibility audit report categorizing violations into Critical, High, Medium, and Low with surgical SwiftUI refactors.",
+      "files": ["evals/files/ViolationsView.swift"],
+      "expectations": [
+        "Identifies unlabelled icon Button as a Critical VoiceOver blocker",
+        "Identifies rigid .frame(height: 35) on Text as a Critical Dynamic Type clipping hazard",
+        "Identifies sub-44pt button (20x20pt) violating Apple HIG and WCAG 2.5.5",
+        "Identifies looping .repeatForever() animation lacking accessibilityReduceMotion check",
+        "Identifies .ultraThinMaterial background lacking accessibilityReduceTransparency fallback",
+        "Identifies color-only status indicator violating Differentiate Without Color",
+        "Identifies AsyncImage missing accessibilityIgnoresInvertColors(true)",
+        "Identifies onTapGesture missing accessibilityAddTraits(.isButton)",
+        "Provides surgical BEFORE/AFTER remediation code for all issues"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit DynamicTypeViolation.swift for Dynamic Type scaling, layout truncation, and missing @ScaledMetric geometry.",
+      "expected_output": "Audit report flagging fixed text container heights and unscaled icon/padding dimensions with ViewThatFits and @ScaledMetric remedies.",
+      "files": ["evals/files/DynamicTypeViolation.swift"],
+      "expectations": [
+        "Identifies rigid .frame(height: 40) on headline text as a Dynamic Type clipping risk",
+        "Identifies iconSize and padding declared as fixed CGFloat without @ScaledMetric",
+        "Recommends @ScaledMetric(relativeTo: .headline) for proportional icon and padding scaling",
+        "Recommends ViewThatFits or minHeight with fixedSize for vertical expansion"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit AccessibleView.swift for accessibility compliance and verify if any violations exist.",
+      "expected_output": "Audit report confirming 0 accessibility violations, noting adherence to VoiceOver labels, traits, @ScaledMetric, 44pt touch targets, and sensory adaptivity.",
+      "files": ["evals/files/AccessibleView.swift"],
+      "expectations": [
+        "Confirms zero accessibility violations or false positives",
+        "Highlights correct usage of @ScaledMetric, accessibilityElement(children: .combine), and minHeight 44pt touch targets",
+        "Validates presence of accessibilityReduceMotion, accessibilityReduceTransparency, and accessibilityIgnoresInvertColors"
+      ]
+    }
+  ]
+}
