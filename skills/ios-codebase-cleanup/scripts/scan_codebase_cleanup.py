@@ -19,10 +19,28 @@ DEFAULT_IGNORES = {
     "fastlane", ".idea", ".vscode", "xcuserdata", "build"
 }
 
+FRAMEWORK_SYMBOLS = {
+    "CoreGraphics": [r"\bCG", r"\bCGFloat\b", r"\bCGPoint\b", r"\bCGRect\b", r"\bCGSize\b"],
+    "Carbon": [r"\bEventHotKey", r"\bGetEvent", r"\bRegisterEventHotKey\b"],
+    "Cocoa": [r"\bNS[A-Z]"],
+    "ServiceManagement": [r"\bSMAppService\b", r"\bSMLoginItem"],
+    "Testing": [r"@Test\b", r"#expect\b", r"#require\b", r"\bSuite\b"],
+    "XCTest": [r"\bXCTestCase\b", r"\bXCTAssert"],
+    "UniformTypeIdentifiers": [r"\bUTType\b"],
+    "StoreKit": [r"\bProduct\b", r"\bTransaction\b", r"\bSKPayment"],
+    "Combine": [r"\bAnyCancellable\b", r"\bPublisher\b", r"\bCurrentValueSubject\b", r"\bPassthroughSubject\b"],
+    "OSLog": [r"\bLogger\b", r"\bos_log\b"],
+    "MetricKit": [r"\bMXMetricPayload\b", r"\bMXDiagnosticPayload\b"]
+}
+
 SWIFT_ENTRY_POINTS = {
     "@main", "UIApplicationDelegate", "UIWindowSceneDelegate",
     "NSApplicationDelegate", "AppDelegate", "SceneDelegate",
     "App", "PrincipalClass"
+}
+
+MANIFEST_FILES = {
+    "Package.swift", "Podfile", "Cartfile", "Fastfile", "Appfile"
 }
 
 class CleanupScanner:
@@ -117,6 +135,9 @@ class CleanupScanner:
             searchable_corpus.append((p, self.get_content(p)))
 
         for sf in self.swift_files:
+            if sf.name in MANIFEST_FILES or sf.name.startswith("Package@"):
+                continue
+
             content = self.get_content(sf)
             
             # Skip if explicitly marked entry point
@@ -270,6 +291,9 @@ class CleanupScanner:
         private_var_pat = re.compile(r'^\s*(?:private|fileprivate)\s+(?:let|var)\s+([a-zA-Z_]\w*)', re.MULTILINE)
 
         for sf in self.swift_files:
+            if sf.name in MANIFEST_FILES or sf.name.startswith("Package@"):
+                continue
+
             content = self.get_content(sf)
             funcs = private_func_pat.findall(content)
             vars_ = private_var_pat.findall(content)
@@ -303,6 +327,9 @@ class CleanupScanner:
         
         # Common frameworks whose symbols might be implicitly used
         for sf in self.swift_files:
+            if sf.name in MANIFEST_FILES or sf.name.startswith("Package@"):
+                continue
+
             content = self.get_content(sf)
             imports = import_pat.findall(content)
             lines = content.splitlines()
@@ -312,6 +339,11 @@ class CleanupScanner:
                 if imp in {"Foundation", "SwiftUI", "UIKit", "AppKit"}:
                     continue  # Frameworks often provide protocol conformances or base types
                 
+                # Check known framework identifiers/prefixes
+                if imp in FRAMEWORK_SYMBOLS:
+                    if any(re.search(pat, body_without_imports) for pat in FRAMEWORK_SYMBOLS[imp]):
+                        continue
+
                 # Check if module name or direct identifiers are used
                 if imp not in body_without_imports:
                     self.dead_imports.append({
