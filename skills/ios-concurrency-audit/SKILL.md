@@ -18,23 +18,47 @@ When inspecting code or profiling data, classify all findings into four severity
 - **Main-Thread I/O Block**: Synchronous disk reading (`Data(contentsOf: fileURL)`), synchronous network requests, or synchronous SQLite/CoreData fetches executed directly on the main thread or inside `@MainActor`.
 - **System Watchdog Kill Risk**: Any synchronous blocking sequence during application launch (`didFinishLaunchingWithOptions`) or view appearance exceeding 250ms (risking `0x8badf00d` termination).
 
-### High (Mini-Hang 100–250ms or Actor Reentrancy / Data Race)
+### High (Mini-Hang 100–250ms or Actor Reentrancy / Data Race / Swift 6 Unsafe)
 - **Actor Reentrancy Invariant Hazard**: State validated before an `await` suspension point that is mutated before the continuation resumes, causing duplicate actions, inconsistent local caches, or double-payments.
+- **Swift 6 Unsafe Escapes**: Blindly applying `@unchecked Sendable` to suppress compiler warnings on classes with mutable state, exposing silent data races.
+- **Unsafe `MainActor.assumeIsolated`**: Invoking `assumeIsolated` from background queues or asynchronous callbacks, causing immediate runtime process abortion (`SIGTRAP`).
+- **Core Data / SwiftData Concurrency Violations**: Passing `NSManagedObject` or SwiftData `@Model` classes across actor/task boundaries instead of `NSManagedObjectID` or `PersistentIdentifier`.
 - **Micro-Hangs during Transitions**: Heavy synchronous work (`JSONDecoder.decode`, cryptographic hashing, complex regex compilation) executed inside `@MainActor` or view lifecycle (`viewDidLoad`, `viewWillAppear`, SwiftUI `.task` without background hop).
-- **Unsynchronized Mutable Shared State**: Non-`Sendable` mutable class instances or pointers passed across task boundaries or background queues without mutual exclusion.
 
-### Medium (Hitch / Scroll Stutter 16.6ms – 100ms)
+### Medium (Hitch / Scroll Stutter 16.6ms – 100ms or Task Retain Leaks)
 - **Main-Thread Image Decoding**: Assigning raw image data directly to `UIImageView` or SwiftUI `Image` without prior off-main decompression (`preparingForDisplay()` or `preparingThumbnail(of:)`).
 - **Expensive Allocations in Hot Paths**: Instantiating `DateFormatter`, `ISO8601DateFormatter`, `NumberFormatter`, or compiling `NSRegularExpression` inside cell rendering (`cellForRowAt`, SwiftUI `List` / `ForEach` body).
-- **Core Data Main Context Thrash**: Running unbounded or non-faulting fetches on `viewContext` while scrolling.
+- **Task Retain Leaks**: Strong `[self]` captures in long-lived or infinite `Task` / `AsyncSequence` loops preventing view deallocation.
+- **Uncooperative TaskGroup**: Child tasks omitting `try Task.checkCancellation()`, continuing to run after parent failure or cancellation.
 
 ### Low (Inefficiency / Anti-Pattern)
 - **Unstructured Fire-and-Forget**: Spawning `Task { ... }` in SwiftUI views without cancellation handling or view lifecycle detachment.
-- **Unnecessary Main-Thread Hops**: Repeatedly jumping between background queues and `@MainActor` in a tight processing loop.
+- **Combine / Actor Thrashing**: Redundant `.receive(on: DispatchQueue.main)` inside `@MainActor` isolated classes causing duplicate run-loop hops.
 
 ---
 
-## 2. Screen & Component Audit Protocol
+## 2. Automated Fast-Scan (CLI Pre-Scan)
+
+Before conducting deep manual AST inspection, run the bundled zero-dependency Python scanner to surface project-wide red flags:
+
+```bash
+# Table summary of high-risk concurrency calls
+python3 scripts/scan_concurrency.py <path/to/ios/project>
+
+# Or generate a structured Markdown report
+python3 scripts/scan_concurrency.py <path/to/ios/project> --format markdown -o concurrency_scan.md
+```
+
+The scanner rapidly flags:
+- Synchronous I/O: `Data(contentsOf:)`, `Thread.sleep`
+- Deadlock hazards: `DispatchQueue.main.sync`, `DispatchSemaphore.wait()`
+- Swift 6 escapes: `@unchecked Sendable`, `nonisolated(unsafe)`, `assumeIsolated`
+- Persistence issues: `.viewContext.performAndWait`
+- Scroll hitches: Formatter instantiations & raw image decodes in cells
+
+---
+
+## 3. Screen & Component Audit Protocol
 
 Perform the audit systematically from the UI layer down to data/network services:
 
@@ -62,10 +86,11 @@ Inspect all user-facing views:
 - **Actors**: Check methods with multiple `await` calls. Do properties get verified before an `await` and modified after? (See `references/concurrency-anti-patterns.md`).
 - **GCD Interop**: Search for `DispatchSemaphore`, `pthread_mutex`, `os_unfair_lock`, or `DispatchQueue.sync` inside async contexts.
 - **Thread Pool Starvation**: Ensure long synchronous loops or blocking waits (`sleep()`) are not occupying Swift Concurrency cooperative worker threads.
+- **Data Persistence**: Verify Core Data contexts and SwiftData models are not shared across isolation domains.
 
 ---
 
-## 3. Reporting Structure
+## 4. Reporting Structure
 
 Format all audit results screen-by-screen, ordering findings by severity:
 
@@ -104,7 +129,7 @@ Instructions for verifying with Instruments, TSan, or MetricKit (see `references
 
 ---
 
-## 4. Key Patterns Quick-Reference
+## 5. Key Patterns Quick-Reference
 
 ### A. Preventing Mini-Hangs from Image Decompression
 ```swift
@@ -178,7 +203,7 @@ func fetchSafely() async -> Data {
 
 ---
 
-## 5. Supplementary Resources
+## 6. Supplementary Resources
 
-- For deep catalog of concurrency traps and anti-patterns, read [concurrency-anti-patterns.md](file:///Users/sendotjiamis/.agents/skills/ios-concurrency-audit/references/concurrency-anti-patterns.md).
+- For deep catalog of concurrency traps, Swift 6 rules, Core Data/SwiftData, and Task retain leaks, read [concurrency-anti-patterns.md](file:///Users/sendotjiamis/.agents/skills/ios-concurrency-audit/references/concurrency-anti-patterns.md).
 - For step-by-step Instruments, TSan, and MetricKit recipes, read [hangs-and-profiling.md](file:///Users/sendotjiamis/.agents/skills/ios-concurrency-audit/references/hangs-and-profiling.md).
