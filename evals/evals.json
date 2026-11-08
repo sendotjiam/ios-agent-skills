@@ -1,0 +1,53 @@
+{
+  "suite_name": "ios-audit-unified",
+  "version": "1.0.0",
+  "description": "Evaluation benchmark suite for the unified iOS auditor, Xcode build integration, and suppression engine.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "eval1_suppression_engine",
+      "prompt": "Audit SuppressionView.swift verifying same-line, next-line, and non-bleeding comment suppression.",
+      "file": "evals/files/SuppressionView.swift",
+      "expectations": [
+        "Line 13 with same-line // ios-audit:ignore HANG-001 is suppressed",
+        "Line 16 unsuppressed Data(contentsOf:) is detected as HANG-001",
+        "Line 20 with previous-line // ios-audit:ignore-next-line COMBINE_ASSIGN_CYCLE is suppressed",
+        "Line 23 unsuppressed assign(to:on:) is detected as COMBINE_ASSIGN_CYCLE",
+        "Total reported findings exactly equals 2"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "eval2_test_filtering",
+      "prompt": "Audit SampleProject verifying default exclusion of Tests/ and explicit opt-in via --include-tests.",
+      "directory": "evals/files/SampleProject",
+      "expectations": [
+        "Default scan of SampleProject reports 0 findings (Tests/ ignored)",
+        "Scan with --include-tests reports 1 finding (Thread.sleep in AppTests.swift)",
+        "Zero false alarms in production CI builds"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "eval3_xcode_formatter",
+      "prompt": "Verify --format xcode output matches Xcode's exact Issue Navigator compiler regex.",
+      "file": "evals/files/XcodeFormatTest.swift",
+      "expectations": [
+        "Output lines conform to {file}:{line}:{col}: {error|warning}: [{skill}] [{rule_id}] {message}",
+        "Critical deadlocks mapped to error",
+        "Medium render churn mapped to warning"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "eval4_orchestration_speed",
+      "prompt": "Verify all 6 skills execute simultaneously with zero namespace collisions in < 50ms.",
+      "file": "evals/files/XcodeFormatTest.swift",
+      "expectations": [
+        "All 6 skills load cleanly via isolated importlib loaders",
+        "Total multi-skill scan execution time is under 50 milliseconds",
+        "Aggregated summary table reports correct severity counts"
+      ]
+    }
+  ]
+}
