@@ -132,10 +132,13 @@ class MemoryLeakScanner:
         self.lines_scanned += len(lines)
         file_str = str(file_path)
 
+        # Compute enclosing type kind for each line (class, struct, enum, actor)
+        type_kinds = self._compute_line_type_kinds(lines)
+
         # Run line-by-line and multiline checks
-        self._check_strong_delegates(lines, file_str)
-        self._check_combine_cycles(lines, file_str)
-        self._check_timer_and_gcd_traps(lines, file_str)
+        self._check_strong_delegates(lines, file_str, type_kinds)
+        self._check_combine_cycles(lines, file_str, type_kinds)
+        self._check_timer_and_gcd_traps(lines, file_str, type_kinds)
         self._check_system_observers(lines, file_str)
         self._check_memory_bloat_loops(lines, file_str)
         self._check_caches_and_core_data(lines, file_str)
@@ -154,7 +157,65 @@ class MemoryLeakScanner:
                 file_findings.append(f)
         self.findings = file_findings
 
-    def _check_strong_delegates(self, lines: List[str], file_path: str):
+    def _compute_line_type_kinds(self, lines: List[str]) -> List[str]:
+        """
+        Determines the innermost enclosing type kind ('class', 'struct', 'actor', 'enum', or 'unknown')
+        for each line in the file.
+        """
+        type_stack: List[Tuple[str, int]] = []  # (kind, brace_depth)
+        current_depth = 0
+        line_kinds: List[str] = []
+
+        type_decl_re = re.compile(
+            r'^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:public|private|internal|fileprivate|open|final)\s+)*(class|struct|enum|actor)\s+([A-Za-z0-9_]+)'
+        )
+
+        for line in lines:
+            stripped = line.strip()
+            # Ignore pure comment lines
+            if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
+                innermost = type_stack[-1][0] if type_stack else "unknown"
+                line_kinds.append(innermost)
+                continue
+
+            open_count = line.count("{")
+            close_count = line.count("}")
+
+            # Check if this line introduces a new type declaration
+            m = type_decl_re.search(line)
+            if m:
+                kind = m.group(1)
+                current_depth += open_count
+                if open_count > 0:
+                    type_stack.append((kind, current_depth))
+                innermost = type_stack[-1][0] if type_stack else kind
+                line_kinds.append(innermost)
+                continue
+
+            current_depth += open_count
+
+            # Pop any types from stack whose scope closed with '}'
+            while type_stack and (current_depth - close_count) < type_stack[-1][1]:
+                type_stack.pop()
+
+            current_depth -= close_count
+
+            innermost = type_stack[-1][0] if type_stack else "unknown"
+            line_kinds.append(innermost)
+
+        return line_kinds
+
+    def _check_strong_delegates(self, lines: List[str], file_path: str, type_kinds: List[str]):
+        # Index declared protocols in file to check for class bounds (: AnyObject / : class)
+        declared_protocols: Dict[str, bool] = {}
+        for line in lines:
+            proto_match = re.search(r'\bprotocol\s+([A-Za-z0-9_]+)(?:\s*:\s*([^{]+))?', line)
+            if proto_match:
+                proto_name = proto_match.group(1)
+                inherits = proto_match.group(2) or ""
+                is_class_bound = bool(re.search(r'\b(?:AnyObject|class)\b', inherits))
+                declared_protocols[proto_name] = is_class_bound
+
         in_protocol = False
         for idx, line in enumerate(lines):
             stripped = line.strip()
@@ -169,6 +230,15 @@ class MemoryLeakScanner:
             delegate_match = re.search(r'\b(?:public|private|internal|fileprivate)?\s*var\s+([a-zA-Z0-9_]*delegate[a-zA-Z0-9_]*)\s*:\s*([A-Za-z0-9_]+)', line, re.IGNORECASE)
             if delegate_match and not re.search(r'\bweak\b', line):
                 if not re.search(r'\{\s*(?:get|return)\b', line) and not stripped.startswith("//"):
+                    delegate_name = delegate_match.group(1)
+                    delegate_type = delegate_match.group(2)
+                    is_known_non_class = declared_protocols.get(delegate_type) is False
+                    
+                    if is_known_non_class:
+                        remediation = f"Protocol '{delegate_type}' must inherit from 'AnyObject' before 'weak' can be applied: 'protocol {delegate_type}: AnyObject'."
+                    else:
+                        remediation = f"Declare delegate as 'weak var {delegate_name}: {delegate_type}?' and ensure protocol inherits from ': AnyObject'."
+
                     self.findings.append(Finding(
                         severity="Critical",
                         category="Strong Delegate Retain Cycle",
@@ -176,14 +246,19 @@ class MemoryLeakScanner:
                         file_path=file_path,
                         line_number=idx + 1,
                         matched_snippet=stripped,
-                        description=f"Delegate property '{delegate_match.group(1)}' declared without 'weak', causing bidirectional retain cycles.",
-                        remediation="Declare delegate as 'weak var delegate: SomeDelegate?' and constrain protocol to 'AnyObject'."
+                        description=f"Delegate property '{delegate_name}' declared without 'weak', causing bidirectional retain cycles.",
+                        remediation=remediation
                     ))
 
-    def _check_combine_cycles(self, lines: List[str], file_path: str):
+    def _check_combine_cycles(self, lines: List[str], file_path: str, type_kinds: List[str]):
         for idx, line in enumerate(lines):
             stripped = line.strip()
             if stripped.startswith("//"):
+                continue
+
+            enclosing_type = type_kinds[idx] if idx < len(type_kinds) else "unknown"
+            # In structs and enums, self is a value type. ARC retain cycles with self are structurally impossible.
+            if enclosing_type in ("struct", "enum"):
                 continue
 
             # Check assign(to:on: self)
@@ -214,11 +289,13 @@ class MemoryLeakScanner:
                         remediation="Add '[weak self]' to the capture list: '.sink { [weak self] value in self?.handle(value) }'."
                     ))
 
-    def _check_timer_and_gcd_traps(self, lines: List[str], file_path: str):
+    def _check_timer_and_gcd_traps(self, lines: List[str], file_path: str, type_kinds: List[str]):
         for idx, line in enumerate(lines):
             stripped = line.strip()
             if stripped.startswith("//"):
                 continue
+
+            enclosing_type = type_kinds[idx] if idx < len(type_kinds) else "unknown"
 
             # Multiline Timer.scheduledTimer check
             if "Timer.scheduledTimer" in line:
@@ -250,8 +327,8 @@ class MemoryLeakScanner:
                         remediation="Add '[weak self]' to setEventHandler: 'timer.setEventHandler { [weak self] in self?.tick() }'."
                     ))
 
-            # DispatchQueue asyncAfter with self
-            if ".asyncAfter" in line:
+            # DispatchQueue asyncAfter with self (only relevant for reference types / classes)
+            if ".asyncAfter" in line and enclosing_type not in ("struct", "enum"):
                 lookahead = "\n".join(lines[idx:min(idx + 6, len(lines))])
                 if ("self." in lookahead or "self?" in lookahead) and not re.search(r'\[\s*(?:weak|unowned)\s+self\s*\]', lookahead):
                     self.findings.append(Finding(

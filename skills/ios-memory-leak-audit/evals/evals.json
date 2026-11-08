@@ -50,6 +50,17 @@
         "Identifies Unmanaged.passRetained pointer allocation without matching release",
         "Provides WeakScriptMessageHandler, token storage, and pointer release solutions"
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "Audit eval5_struct_value_safety.swift for value-type safety and protocol class constraint requirements.",
+      "expected_output": "Audit report flagging non-class protocol delegate while verifying zero false positives on SwiftUI struct Views.",
+      "files": ["evals/files/eval5_struct_value_safety.swift"],
+      "expectations": [
+        "Identifies filterDelegate lacking weak on unbound protocol and prescribes : AnyObject",
+        "Reports zero false positives for [self] or .sink in SwiftUI struct View FeedCardView",
+        "Reports zero false positives for DispatchQueue.main.asyncAfter in FeedCardView"
+      ]
     }
   ]
 }

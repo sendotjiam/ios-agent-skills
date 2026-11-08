@@ -22,25 +22,44 @@ A curated collection of production-grade agentic AI skills for iOS, iPadOS, macO
 | **`ios-memory-leak-audit`** | Memory & ARC Diagnostics | [`skills/ios-memory-leak-audit`](./skills/ios-memory-leak-audit) | Audits codebases for ARC retain cycles (closures, delegates, Combine `assign(to:on:)`), target-action leaks (`Timer`, `CADisplayLink`), WebKit/AVFoundation observers, memory bloat (missing `@autoreleasepool`, raw image decoding, Core Data context bloat), GCD delays, and unmanaged CoreFoundation leaks. |
 | **`coredata-swiftdata-audit`** | Persistence & Data Architecture | [`skills/coredata-swiftdata-audit`](./skills/coredata-swiftdata-audit) | Audits Core Data and SwiftData stacks for context concurrency hazards (`perform`/`performAndWait`), fault thrashing, batch delete/insert inefficiencies, CloudKit sync constraints, schema migration safety, and SQL query performance. |
 | **`ios-a11y-audit`** | Accessibility & Assistive Tech | [`skills/ios-a11y-audit`](./skills/ios-a11y-audit) | Audits SwiftUI and UIKit view hierarchies for VoiceOver tree integrity (unlabelled buttons, grouping, rotors), Dynamic Type text clipping, `@ScaledMetric`, 44x44pt tap target minimums, WCAG 2.1 AA/AAA color contrast, assistive traits, sensory adaptations (Reduce Motion, Reduce Transparency, Differentiate Without Color), Smart Invert, and Xcode 15+ automated tests (`performAccessibilityAudit`). |
+| **`ios-privacy-security-audit`** | Privacy, Security & App Store | [`skills/ios-privacy-security-audit`](./skills/ios-privacy-security-audit) | Audits codebases for Apple Privacy Manifest (`PrivacyInfo.xcprivacy`) required reason APIs (enforced May 2024), unencrypted credential/JWT storage in `UserDefaults`, hardcoded API keys/secrets, ATS HTTP exceptions, and biometric auth bypasses. |
+| **`ios-app-launch-audit`** | Startup & Launch Performance | [`skills/ios-app-launch-audit`](./skills/ios-app-launch-audit) | Audits cold/warm startup bottlenecks against MetricKit's $<400\text{ms}$ budget. Detects synchronous store loading in `@main` `init()`, main-thread blocking I/O in `didFinishLaunching`, SDK init pileups, and Objective-C `+load` pre-main overhead. |
+| **`swift-testing-migration`** | Testing Modernization & Swift 6 | [`skills/swift-testing-migration`](./skills/swift-testing-migration) | Audits test suites for modernization to the WWDC24 Swift `Testing` framework. Identifies legacy `XCTestCase` classes, converts assertions to `#expect`, migrates loops to `@Test(arguments: [...])`, and eliminates flaky `Thread.sleep` waits. |
 
 ---
 
 ## 🛠️ Unified Auditor CLI (`bin/ios-audit`)
 
-Run all 6 specialized iOS audits simultaneously with a single zero-dependency command:
+Run all 9 specialized iOS audits simultaneously with a single zero-dependency command:
 
 ```bash
 # Run all audits across your Xcode workspace
 ./bin/ios-audit /path/to/project --all
 
 # Or select specific audit domains
-./bin/ios-audit /path/to/project --skills concurrency,renders,memory,a11y
+./bin/ios-audit /path/to/project --skills concurrency,renders,memory,privacy,launch
+
+# Export SARIF for GitHub Security & Code Scanning
+./bin/ios-audit /path/to/project --all --format sarif -o results.sarif
 
 # Export formatted Markdown for PR review comments
 ./bin/ios-audit /path/to/project --all --format markdown -o pr_audit.md
 
 # Machine-readable JSON output for CI quality gates
 ./bin/ios-audit /path/to/project --all --format json -o audit.json
+```
+
+### 🐙 Drop-in GitHub Action (`.github/workflows/ios-audit.yml`)
+Easily integrate into your CI/CD pipeline with GitHub Code Scanning SARIF annotations:
+
+```yaml
+- name: Run Unified iOS Audit
+  run: ./bin/ios-audit . --all --format sarif -o results.sarif --no-exit-code
+
+- name: Upload SARIF to GitHub Security Scanning
+  uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: results.sarif
 ```
 
 ### 🍎 Xcode Run Script Build Phase Integration
@@ -120,6 +139,9 @@ ln -s ~/Documents/ios-agent-skills/skills/ios-codebase-cleanup ~/.agents/skills/
 ln -s ~/Documents/ios-agent-skills/skills/ios-memory-leak-audit ~/.agents/skills/ios-memory-leak-audit
 ln -s ~/Documents/ios-agent-skills/skills/coredata-swiftdata-audit ~/.agents/skills/coredata-swiftdata-audit
 ln -s ~/Documents/ios-agent-skills/skills/ios-a11y-audit ~/.agents/skills/ios-a11y-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-privacy-security-audit ~/.agents/skills/ios-privacy-security-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-app-launch-audit ~/.agents/skills/ios-app-launch-audit
+ln -s ~/Documents/ios-agent-skills/skills/swift-testing-migration ~/.agents/skills/swift-testing-migration
 
 # 3. Synchronize across Antigravity, Claude Code, and Codex
 ~/.agents/sync-skills.sh
@@ -133,6 +155,9 @@ ln -s ~/Documents/ios-agent-skills/skills/ios-codebase-cleanup ~/.claude/skills/
 ln -s ~/Documents/ios-agent-skills/skills/ios-memory-leak-audit ~/.claude/skills/ios-memory-leak-audit
 ln -s ~/Documents/ios-agent-skills/skills/coredata-swiftdata-audit ~/.claude/skills/coredata-swiftdata-audit
 ln -s ~/Documents/ios-agent-skills/skills/ios-a11y-audit ~/.claude/skills/ios-a11y-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-privacy-security-audit ~/.claude/skills/ios-privacy-security-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-app-launch-audit ~/.claude/skills/ios-app-launch-audit
+ln -s ~/Documents/ios-agent-skills/skills/swift-testing-migration ~/.claude/skills/swift-testing-migration
 ```
 
 ### Option 3: Codex Direct
@@ -143,6 +168,9 @@ ln -s ~/Documents/ios-agent-skills/skills/ios-codebase-cleanup ~/.codex/skills/i
 ln -s ~/Documents/ios-agent-skills/skills/ios-memory-leak-audit ~/.codex/skills/ios-memory-leak-audit
 ln -s ~/Documents/ios-agent-skills/skills/coredata-swiftdata-audit ~/.codex/skills/coredata-swiftdata-audit
 ln -s ~/Documents/ios-agent-skills/skills/ios-a11y-audit ~/.codex/skills/ios-a11y-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-privacy-security-audit ~/.codex/skills/ios-privacy-security-audit
+ln -s ~/Documents/ios-agent-skills/skills/ios-app-launch-audit ~/.codex/skills/ios-app-launch-audit
+ln -s ~/Documents/ios-agent-skills/skills/swift-testing-migration ~/.codex/skills/swift-testing-migration
 ```
 
 ---
@@ -343,16 +371,16 @@ python3 skills/ios-a11y-audit/scripts/scan_a11y.py /path/to/ios/project --format
 - [x] `ios-concurrency-audit`: Hangs $\ge 250\text{ms}$, actor reentrancy, data races, deadlocks, Swift 6 strict concurrency.
 - [x] `swiftui-render-optimization`: Identity churn, view graph invalidations, EquatableView conformance, body re-evaluations.
 - [x] `ios-codebase-cleanup`: Dead files, orphaned `.xcassets`, unlinked docs, dead internal symbols, PBXProj sync.
-- [x] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
+- [x] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks, struct value-safety.
 - [x] `coredata-swiftdata-audit`: Context concurrency violations, fault thrashing, migration safety, batching, CloudKit sync.
 - [x] `ios-a11y-audit`: VoiceOver accessibility elements, Dynamic Type scaling, contrast ratios, assistive traits, sensory adaptations, Smart Invert.
+- [x] `ios-privacy-security-audit`: Apple Privacy Manifest (`PrivacyInfo.xcprivacy`) required reason APIs, Keychain vs UserDefaults token leaks, hardcoded secrets, App Transport Security (ATS) exceptions, biometric auth bypasses.
+- [x] `ios-app-launch-audit`: MetricKit cold/warm launch thresholds (<400ms), pre-main dynamic dylib loading, main-thread blocking in `didFinishLaunchingWithOptions`, lazy root view bootstrapping.
+- [x] `swift-testing-migration`: Modernizing legacy `XCTestCase` suites to WWDC24 Swift `Testing` framework (`@Suite`, `@Test`, parameterized testing, async testing, tags, test flakiness).
 
 ### Planned Skills (Next Up)
-- [ ] `ios-privacy-security-audit`: Apple Privacy Manifest (`PrivacyInfo.xcprivacy`) required reason APIs, Keychain vs UserDefaults token leaks, hardcoded secrets, App Transport Security (ATS) exceptions, biometric auth bypasses.
-- [ ] `ios-app-launch-audit`: MetricKit cold/warm launch thresholds (<400ms), pre-main dynamic dylib loading, main-thread blocking in `didFinishLaunchingWithOptions`, lazy root view bootstrapping.
 - [ ] `ios-build-time-audit`: Swift compiler expression type-checking bottlenecks (`-warn-long-expression-type-checking`), multi-nested closure type inference, SPM modularization, Whole Module Optimization.
 - [ ] `ios-battery-energy-audit`: Background task watchdog kills (`0xbaadca11` / `0x8badf00d`), `BGTaskScheduler` expiration handlers, unthrottled background location & timer leaks, thermal throttling.
-- [ ] `swift-testing-migration`: Modernizing legacy `XCTestCase` suites to WWDC24 Swift `Testing` framework (`@Suite`, `@Test`, parameterized testing, async testing, tags, test flakiness).
 
 ---
 

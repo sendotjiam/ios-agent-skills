@@ -99,6 +99,19 @@ class TestUnifiedAuditor(unittest.TestCase):
         self.assertIn("# iOS Agent Skills Unified Audit Report", proc.stdout)
         self.assertIn("`HANG-001`", proc.stdout)
 
+    def test_sarif_format(self):
+        fixture = REPO_ROOT / "skills/ios-concurrency-audit/evals/files/eval1_transfer.swift"
+        proc = subprocess.run(
+            [str(CLI_PATH), str(fixture), "--skills", "concurrency", "--format", "sarif", "--no-exit-code"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0)
+        sarif = json.loads(proc.stdout)
+        self.assertEqual(sarif["version"], "2.1.0")
+        self.assertGreaterEqual(len(sarif["runs"][0]["results"]), 1)
+        self.assertEqual(sarif["runs"][0]["tool"]["driver"]["name"], "ios-audit")
+
 
 if __name__ == "__main__":
     unittest.main()

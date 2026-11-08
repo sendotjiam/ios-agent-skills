@@ -50,6 +50,9 @@ ALL_SKILLS = [
     "persistence",
     "a11y",
     "cleanup",
+    "privacy",
+    "launch",
+    "testing",
 ]
 
 SKILL_DISPLAY_NAMES = {
@@ -59,6 +62,9 @@ SKILL_DISPLAY_NAMES = {
     "persistence": "coredata-swiftdata-audit",
     "a11y": "ios-a11y-audit",
     "cleanup": "ios-codebase-cleanup",
+    "privacy": "ios-privacy-security-audit",
+    "launch": "ios-app-launch-audit",
+    "testing": "swift-testing-migration",
 }
 
 
@@ -284,6 +290,72 @@ class UnifiedAuditor:
                         )
                     )
 
+            elif skill_key == "privacy":
+                script_path = REPO_ROOT / "skills/ios-privacy-security-audit/scripts/scan_privacy_security.py"
+                mod = load_module("scan_privacy_security", script_path)
+                scanner = mod.PrivacySecurityScanner(
+                    str(self.target_path),
+                    min_severity="low",
+                    include_tests=self.include_tests,
+                )
+                raw = scanner.scan()
+                for f in raw:
+                    findings.append(
+                        UnifiedFinding(
+                            skill=skill_name,
+                            rule_id=f.rule_id,
+                            severity=f.severity.upper(),
+                            file_path=f.file_path,
+                            line_number=f.line_number,
+                            message=f.description,
+                            recommendation=f.remediation,
+                        )
+                    )
+
+            elif skill_key == "launch":
+                script_path = REPO_ROOT / "skills/ios-app-launch-audit/scripts/scan_app_launch.py"
+                mod = load_module("scan_app_launch", script_path)
+                scanner = mod.AppLaunchScanner(
+                    str(self.target_path),
+                    min_severity="low",
+                    include_tests=self.include_tests,
+                )
+                raw = scanner.scan()
+                for f in raw:
+                    findings.append(
+                        UnifiedFinding(
+                            skill=skill_name,
+                            rule_id=f.rule_id,
+                            severity=f.severity.upper(),
+                            file_path=f.file_path,
+                            line_number=f.line_number,
+                            message=f.description,
+                            recommendation=f.remediation,
+                        )
+                    )
+
+            elif skill_key == "testing":
+                script_path = REPO_ROOT / "skills/swift-testing-migration/scripts/scan_test_migration.py"
+                mod = load_module("scan_test_migration", script_path)
+                scanner = mod.TestMigrationScanner(
+                    str(self.target_path),
+                    min_severity="low",
+                    include_tests=True,
+                )
+                raw = scanner.scan()
+                for f in raw:
+                    findings.append(
+                        UnifiedFinding(
+                            skill=skill_name,
+                            rule_id=f.rule_id,
+                            severity=f.severity.upper(),
+                            file_path=f.file_path,
+                            line_number=f.line_number,
+                            message=f.description,
+                            recommendation=f.remediation,
+                        )
+                    )
+
         except Exception as e:
             print(f"{YELLOW}[Warning] Failed to run skill '{skill_name}': {e}{RESET}", file=sys.stderr)
 
@@ -397,6 +469,71 @@ def format_json(auditor: UnifiedAuditor, target_str: str) -> str:
     return json.dumps(payload, indent=2)
 
 
+def format_sarif(auditor: UnifiedAuditor, target_str: str) -> str:
+    rules_dict = {}
+    results = []
+
+    for f in auditor.findings:
+        sev = f.severity.upper()
+        level = "error" if sev in ["CRITICAL", "HIGH"] else "warning" if sev == "MEDIUM" else "note"
+        if f.rule_id not in rules_dict:
+            rules_dict[f.rule_id] = {
+                "id": f.rule_id,
+                "name": f.rule_id,
+                "shortDescription": {"text": f.message[:100]},
+                "fullDescription": {"text": f.message},
+                "defaultConfiguration": {"level": level},
+                "help": {"text": f.recommendation},
+            }
+
+        try:
+            if auditor.target_path.is_file():
+                rel_path = Path(f.file_path).name
+            else:
+                rel_path = str(Path(f.file_path).relative_to(auditor.target_path))
+        except ValueError:
+            rel_path = f.file_path
+
+        results.append({
+            "ruleId": f.rule_id,
+            "level": level,
+            "message": {"text": f"{f.message} (Fix: {f.recommendation})"},
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {
+                            "uri": rel_path,
+                            "uriBaseId": "%SRCROOT%",
+                        },
+                        "region": {
+                            "startLine": f.line_number,
+                            "startColumn": 1,
+                        },
+                    }
+                }
+            ],
+        })
+
+    sarif = {
+        "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "ios-audit",
+                        "informationUri": "https://github.com/sendotjiam/ios-agent-skills",
+                        "version": "1.0.0",
+                        "rules": list(rules_dict.values()),
+                    }
+                },
+                "results": results,
+            }
+        ],
+    }
+    return json.dumps(sarif, indent=2)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Unified Multi-Skill iOS & Apple Engineering Auditor"
@@ -409,7 +546,7 @@ def main():
     )
     parser.add_argument(
         "--format",
-        choices=["table", "text", "xcode", "markdown", "json"],
+        choices=["table", "text", "xcode", "markdown", "json", "sarif"],
         default="table",
         help="Report output format (default: table)",
     )
@@ -460,6 +597,8 @@ def main():
         out = format_xcode(auditor)
     elif args.format == "markdown":
         out = format_markdown(auditor, str(target))
+    elif args.format == "sarif":
+        out = format_sarif(auditor, str(target))
     else:
         out = format_json(auditor, str(target))
 

@@ -41,10 +41,10 @@
     {
       "id": 4,
       "name": "eval4_orchestration_speed",
-      "prompt": "Verify all 6 skills execute simultaneously with zero namespace collisions in < 50ms.",
+      "prompt": "Verify all 9 skills execute simultaneously with zero namespace collisions in < 50ms.",
       "file": "evals/files/XcodeFormatTest.swift",
       "expectations": [
-        "All 6 skills load cleanly via isolated importlib loaders",
+        "All 9 skills load cleanly via isolated importlib loaders",
         "Total multi-skill scan execution time is under 50 milliseconds",
         "Aggregated summary table reports correct severity counts"
       ]

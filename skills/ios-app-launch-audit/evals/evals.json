@@ -1,0 +1,43 @@
+{
+  "skill_name": "ios-app-launch-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit eval1_appdelegate_blocking.swift for blocking main-thread I/O and obsolete UserDefaults disk flushes.",
+      "expected_output": "Audit report identifying synchronous Data(contentsOf:) and UserDefaults.synchronize() in didFinishLaunchingWithOptions.",
+      "files": ["evals/files/eval1_appdelegate_blocking.swift"],
+      "expectations": [
+        "Identifies synchronous Data(contentsOf:) as LAUNCH_BLOCKING_FILE_IO",
+        "Identifies obsolete UserDefaults.standard.synchronize() as LAUNCH_OBSOLETE_USERDEFAULTS_SYNC"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit eval2_sync_persistence_launch.swift for synchronous Core Data store loading during app launch.",
+      "expected_output": "Audit report flagging loadPersistentStores called synchronously in @main init().",
+      "files": ["evals/files/eval2_sync_persistence_launch.swift"],
+      "expectations": [
+        "Identifies loadPersistentStores as LAUNCH_SYNC_PERSISTENCE_LOAD"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit eval3_objc_load_and_statics.m for Objective-C +load methods inflating pre-main cold start.",
+      "expected_output": "Audit report flagging Objective-C +load method and recommending +initialize.",
+      "files": ["evals/files/eval3_objc_load_and_statics.m"],
+      "expectations": [
+        "Identifies +load method as LAUNCH_OBJC_PLUS_LOAD"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit eval4_sdk_init_bloat.swift for synchronous third-party SDK initializations during app launch.",
+      "expected_output": "Audit report flagging FirebaseApp.configure and SentrySDK.start on the main thread.",
+      "files": ["evals/files/eval4_sdk_init_bloat.swift"],
+      "expectations": [
+        "Identifies FirebaseApp.configure as LAUNCH_SDK_INIT_FIREBASE",
+        "Identifies SentrySDK.start as LAUNCH_SDK_INIT_SENTRY"
+      ]
+    }
+  ]
+}

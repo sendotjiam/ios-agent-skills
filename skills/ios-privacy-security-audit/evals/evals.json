@@ -1,0 +1,49 @@
+{
+  "skill_name": "ios-privacy-security-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit eval1_privacy_manifest.swift for Apple Required Reason APIs lacking PrivacyInfo.xcprivacy declarations.",
+      "expected_output": "Audit report flagging UserDefaults, System Boot Time, Disk Space, and File Timestamp APIs with exact reason codes.",
+      "files": ["evals/files/eval1_privacy_manifest.swift"],
+      "expectations": [
+        "Identifies UserDefaults.standard as PRIV_REQ_USERDEFAULTS",
+        "Identifies systemUptime as PRIV_REQ_BOOTTIME",
+        "Identifies volumeAvailableCapacityKey as PRIV_REQ_DISKSPACE",
+        "Identifies URLContentModificationDateKey as PRIV_REQ_FILETIME"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit eval2_insecure_storage.swift for sensitive credentials stored insecurely in UserDefaults.",
+      "expected_output": "Audit report flagging JWT and refresh tokens in UserDefaults and prescribing Keychain Services.",
+      "files": ["evals/files/eval2_insecure_storage.swift"],
+      "expectations": [
+        "Identifies user_jwt_token stored in UserDefaults",
+        "Identifies user_refresh_token stored in UserDefaults",
+        "Recommends migration to Keychain Services (kSecClassGenericPassword)"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit eval3_hardcoded_secrets.swift for hardcoded API keys and credentials.",
+      "expected_output": "Audit report detecting OpenAI, Google Maps, and AWS credentials in source code.",
+      "files": ["evals/files/eval3_hardcoded_secrets.swift"],
+      "expectations": [
+        "Identifies hardcoded OpenAI secret key (SEC_OPENAI_KEY)",
+        "Identifies hardcoded Google Maps API key (SEC_GOOGLE_KEY)",
+        "Identifies hardcoded AWS access key ID (SEC_AWS_KEY)"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit eval4_ats_biometrics.swift for insecure HTTP transport and LocalAuthentication biometric bypass hazards.",
+      "expected_output": "Audit report flagging plaintext HTTP and un-guarded LAContext evaluatePolicy calls.",
+      "files": ["evals/files/eval4_ats_biometrics.swift"],
+      "expectations": [
+        "Identifies plaintext HTTP URL violating ATS (INSECURE_HTTP_TRANSPORT)",
+        "Identifies LAContext evaluatePolicy missing canEvaluatePolicy pre-flight check"
+      ]
+    }
+  ]
+}

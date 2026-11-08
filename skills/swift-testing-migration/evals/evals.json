@@ -1,0 +1,44 @@
+{
+  "skill_name": "swift-testing-migration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit eval1_legacy_xctest_assertions.swift for XCTestCase classes and legacy assertion macros.",
+      "expected_output": "Audit report flagging XCTestCase class, XCTAssertEqual, XCTAssertTrue, and XCTAssertNil.",
+      "files": ["evals/files/eval1_legacy_xctest_assertions.swift"],
+      "expectations": [
+        "Identifies XCTestCase class as TEST_LEGACY_XCTESTCASE_CLASS",
+        "Identifies XCTAssertEqual as TEST_LEGACY_ASSERT_EQUAL",
+        "Identifies XCTAssertTrue as TEST_LEGACY_ASSERT_TRUE",
+        "Identifies XCTAssertNil as TEST_LEGACY_ASSERT_NIL"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit eval2_loop_parameterized.swift for loops running assertions across collections.",
+      "expected_output": "Audit report flagging assertion loop and prescribing @Test(arguments: [...]).",
+      "files": ["evals/files/eval2_loop_parameterized.swift"],
+      "expectations": [
+        "Identifies assertion loop as TEST_PARAMETERIZED_CANDIDATE"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit eval3_flaky_sleep_async.swift for Thread.sleep / Task.sleep waits in tests.",
+      "expected_output": "Audit report flagging Thread.sleep as flaky test synchronization.",
+      "files": ["evals/files/eval3_flaky_sleep_async.swift"],
+      "expectations": [
+        "Identifies Thread.sleep as TEST_FLAKY_SLEEP_WAIT"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit eval4_expectation_wait.swift for legacy expectation(description:) usage.",
+      "expected_output": "Audit report flagging legacy expectation and prescribing Swift Testing confirmation.",
+      "files": ["evals/files/eval4_expectation_wait.swift"],
+      "expectations": [
+        "Identifies expectation(description:) as TEST_LEGACY_XCT_EXPECTATION"
+      ]
+    }
+  ]
+}

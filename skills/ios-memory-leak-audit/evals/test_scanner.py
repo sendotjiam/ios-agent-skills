@@ -38,6 +38,9 @@ EXPECTED_RULES = {
         "AVFOUNDATION_OBSERVER_LEAK",
         "NOTIFICATION_TOKEN_DISCARD",
         "UNMANAGED_CF_LEAK"
+    ],
+    "eval5_struct_value_safety.swift": [
+        "STRONG_DELEGATE"
     ]
 }
 

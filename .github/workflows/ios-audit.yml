@@ -1,0 +1,51 @@
+name: iOS Architecture & Performance Audit
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  ios-audit:
+    name: Run ios-audit Quality Gates
+    runs-on: macos-latest
+
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Unified iOS Audit (SARIF Export)
+        run: |
+          chmod +x bin/ios-audit
+          ./bin/ios-audit . --all --format sarif -o results.sarif --no-exit-code
+
+      - name: Upload SARIF to GitHub Security Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+          category: ios-agent-skills
+
+      - name: Generate PR Markdown Report
+        if: github.event_name == 'pull_request'
+        run: |
+          ./bin/ios-audit . --all --format markdown -o pr_report.md --no-exit-code
+          echo "## iOS Audit Results" >> $GITHUB_STEP_SUMMARY
+          cat pr_report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Strict Quality Gate Enforcement
+        run: |
+          # Fail pipeline if Critical or High severity issues exist
+          ./bin/ios-audit . --all --min-severity HIGH
