@@ -289,12 +289,20 @@ python3 skills/ios-a11y-audit/scripts/scan_a11y.py /path/to/ios/project --format
 
 ## 🗺️ Roadmap & Planned Skills
 
+### Completed Skills
 - [x] `ios-concurrency-audit`: Hangs $\ge 250\text{ms}$, actor reentrancy, data races, deadlocks, Swift 6 strict concurrency.
 - [x] `swiftui-render-optimization`: Identity churn, view graph invalidations, EquatableView conformance, body re-evaluations.
 - [x] `ios-codebase-cleanup`: Dead files, orphaned `.xcassets`, unlinked docs, dead internal symbols, PBXProj sync.
 - [x] `ios-memory-leak-audit`: Retain cycles, closure capture lists, autorelease pool exhaustion, CoreFoundation leaks.
 - [x] `coredata-swiftdata-audit`: Context concurrency violations, fault thrashing, migration safety, batching, CloudKit sync.
 - [x] `ios-a11y-audit`: VoiceOver accessibility elements, Dynamic Type scaling, contrast ratios, assistive traits, sensory adaptations, Smart Invert.
+
+### Planned Skills (Next Up)
+- [ ] `ios-privacy-security-audit`: Apple Privacy Manifest (`PrivacyInfo.xcprivacy`) required reason APIs, Keychain vs UserDefaults token leaks, hardcoded secrets, App Transport Security (ATS) exceptions, biometric auth bypasses.
+- [ ] `ios-app-launch-audit`: MetricKit cold/warm launch thresholds (<400ms), pre-main dynamic dylib loading, main-thread blocking in `didFinishLaunchingWithOptions`, lazy root view bootstrapping.
+- [ ] `ios-build-time-audit`: Swift compiler expression type-checking bottlenecks (`-warn-long-expression-type-checking`), multi-nested closure type inference, SPM modularization, Whole Module Optimization.
+- [ ] `ios-battery-energy-audit`: Background task watchdog kills (`0xbaadca11` / `0x8badf00d`), `BGTaskScheduler` expiration handlers, unthrottled background location & timer leaks, thermal throttling.
+- [ ] `swift-testing-migration`: Modernizing legacy `XCTestCase` suites to WWDC24 Swift `Testing` framework (`@Suite`, `@Test`, parameterized testing, async testing, tags, test flakiness).
 
 ---
 
