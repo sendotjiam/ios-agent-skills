@@ -25,6 +25,56 @@ A curated collection of production-grade agentic AI skills for iOS, iPadOS, macO
 
 ---
 
+## 🛠️ Unified Auditor CLI (`bin/ios-audit`)
+
+Run all 6 specialized iOS audits simultaneously with a single zero-dependency command:
+
+```bash
+# Run all audits across your Xcode workspace
+./bin/ios-audit /path/to/project --all
+
+# Or select specific audit domains
+./bin/ios-audit /path/to/project --skills concurrency,renders,memory,a11y
+
+# Export formatted Markdown for PR review comments
+./bin/ios-audit /path/to/project --all --format markdown -o pr_audit.md
+
+# Machine-readable JSON output for CI quality gates
+./bin/ios-audit /path/to/project --all --format json -o audit.json
+```
+
+### 🍎 Xcode Run Script Build Phase Integration
+Surface architectural hazards, retain cycles, and render hitches directly in Xcode's **Issue Navigator** as inline compiler warnings:
+
+1. In Xcode, navigate to your App Target $\rightarrow$ **Build Phases** $\rightarrow$ **+** $\rightarrow$ **New Run Script Phase**.
+2. Add the following script:
+
+```bash
+if [ -f "$SRCROOT/bin/ios-audit" ]; then
+  python3 "$SRCROOT/bin/ios-audit" "$SRCROOT" --all --format xcode
+fi
+```
+Xcode will automatically highlight violating lines in your code editor with red error and yellow warning badges!
+
+### 🔇 Inline Comment Suppression
+Silence intentional exceptions or legacy bridges without failing CI:
+
+```swift
+// Same-line suppression:
+let data = try? Data(contentsOf: localUrl) // ios-audit:ignore HANG-001
+
+// Next-line suppression:
+// ios-audit:ignore-next-line COMBINE_ASSIGN_CYCLE
+cancellable = publisher.assign(to: \.value, on: self)
+
+// Blanket suppression for an intentional block:
+// ios-audit:ignore-all
+```
+
+*Note: Test folders (`Tests/`, `UITests/`, `Mocks/`, `Fixtures/`) and test files (`*Tests.swift`) are automatically excluded by default to eliminate false alarms. Pass `--include-tests` if you wish to audit test suites.*
+
+---
+
 ## ⚡ Architecture & Audit Flow
 
 ```

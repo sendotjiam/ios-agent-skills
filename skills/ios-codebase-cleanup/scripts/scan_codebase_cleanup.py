@@ -547,12 +547,24 @@ def print_markdown(summary_data: Dict[str, Any]) -> str:
     return "\n".join(md)
 
 
+def print_xcode(summary_data: Dict[str, Any]) -> str:
+    lines = []
+    for it in summary_data.get("items", []):
+        sev = "warning" if it.get("confidence") == "High" else "note"
+        lines.append(f"{it.get('path')}:1:1: {sev}: [DEAD_ITEM] {it.get('type')}: {it.get('reason')}")
+    for sym in summary_data.get("dead_symbols", []):
+        lines.append(f"{sym.get('file')}:{sym.get('line', 1)}:1: warning: [DEAD_SYMBOL] Unused symbol '{sym.get('symbol')}': {sym.get('reason')}")
+    for imp in summary_data.get("unused_imports", []):
+        lines.append(f"{imp.get('file')}:{imp.get('line', 1)}:1: note: [UNUSED_IMPORT] Unused framework import '{imp.get('framework')}'")
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description="iOS Codebase Cleanup Scanner")
     parser.add_argument("path", nargs="?", default=".", help="Path to project root")
     parser.add_argument("--scope", default="files,assets,docs",
                         help="Comma-separated scopes: files, assets, docs, symbols, imports, strings, all (default: files,assets,docs)")
-    parser.add_argument("--format", choices=["table", "json", "markdown"], default="table",
+    parser.add_argument("--format", choices=["table", "text", "json", "markdown", "xcode"], default="table",
                         help="Output format (default: table)")
     parser.add_argument("--delete", action="store_true", help="Execute deletion of dead files and assets")
     parser.add_argument("--force", action="store_true", help="Bypass interactive confirmation before deletion")
@@ -580,6 +592,13 @@ def main():
             Path(args.output).write_text(out, encoding="utf-8")
         else:
             print(out)
+    elif args.format == "xcode":
+        out = print_xcode(summary_data)
+        if args.output:
+            Path(args.output).write_text(out, encoding="utf-8")
+        else:
+            if out:
+                print(out)
     else:
         print_table(summary_data)
         if args.output:

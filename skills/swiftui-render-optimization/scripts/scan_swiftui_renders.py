@@ -124,8 +124,37 @@ RULE_LOOKUP = {r["id"]: r for r in RULES}
 
 IGNORED_DIRS = {
     ".git", ".build", "Pods", "DerivedData", "Carthage", ".swiftpm",
-    ".idea", ".vscode", "xcuserdata", "Tests", "UITests"
+    ".idea", ".vscode", "xcuserdata", "Tests", "UITests",
+    "UnitTests", "IntegrationTests", "Mocks", "Fixtures", "TestHelpers"
 }
+
+def is_rule_suppressed(line: str, prev_line: Optional[str], rule_id: str) -> bool:
+    """Checks for same-line // ios-audit:ignore <RULE> or previous-line // ios-audit:ignore-next-line <RULE>."""
+    if "//" in line:
+        same_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore\s+([\w\-, ]+)", re.IGNORECASE)
+        m = same_line_pat.search(line)
+        if m:
+            ignored = [r.strip().upper() for r in m.group(1).split(",")]
+            if "ALL" in ignored or rule_id.upper() in ignored:
+                return True
+        if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore-all\b", line, re.IGNORECASE):
+            return True
+
+    if prev_line and "//" in prev_line:
+        next_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line|disable-next-line)\s+([\w\-, ]+)", re.IGNORECASE)
+        m_next = next_line_pat.search(prev_line)
+        if m_next:
+            ignored = [r.strip().upper() for r in m_next.group(1).split(",")]
+            if "ALL" in ignored or rule_id.upper() in ignored:
+                return True
+        if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line-all|disable-next-line-all)\b", prev_line, re.IGNORECASE):
+            return True
+
+    return False
+
+def add_finding_if_not_suppressed(findings: List[Finding], finding: Finding, line: str, prev_line: str = ""):
+    if not is_rule_suppressed(line, prev_line, finding.rule_id):
+        findings.append(finding)
 
 def is_ignored(path: Path) -> bool:
     for part in path.parts:
@@ -429,7 +458,26 @@ def scan_file(file_path: Path) -> List[Finding]:
                             recommendation=RULE_LOOKUP["MED_OBSERVATION_IGNORED"]["recommendation"]
                         ))
 
-    return findings
+    # Apply inline suppression directives
+    valid_findings = []
+    lines_list = content.splitlines()
+    for f in findings:
+        line_idx = f.line_number - 1
+        cur_line = lines_list[line_idx] if 0 <= line_idx < len(lines_list) else ""
+        prev_line = lines_list[line_idx - 1] if line_idx > 0 else ""
+        if not is_rule_suppressed(cur_line, prev_line, f.rule_id):
+            valid_findings.append(f)
+
+    return valid_findings
+
+def render_xcode(findings: List[Finding], target_path: str, min_severity: str) -> str:
+    min_rank = SEVERITY_ORDER[min_severity]
+    filtered = [f for f in findings if SEVERITY_ORDER[f.severity] <= min_rank]
+    lines = []
+    for f in filtered:
+        sev = "error" if f.severity in ["critical", "high"] else "warning"
+        lines.append(f"{f.file_path}:{f.line_number}:1: {sev}: [{f.rule_id}] {f.title}: {f.recommendation}")
+    return "\n".join(lines)
 
 def render_text(findings: List[Finding], target_path: str, min_severity: str) -> str:
     min_rank = SEVERITY_ORDER[min_severity]
@@ -524,8 +572,9 @@ def render_json(findings: List[Finding], target_path: str, min_severity: str) ->
 def main():
     parser = argparse.ArgumentParser(description="SwiftUI Render Performance Static Scanner")
     parser.add_argument("path", help="Path to Xcode project, package, or directory to scan")
-    parser.add_argument("--format", choices=["text", "markdown", "json"], default="text", help="Output format")
+    parser.add_argument("--format", choices=["text", "table", "markdown", "json", "xcode"], default="text", help="Output format")
     parser.add_argument("--min-severity", choices=["critical", "high", "medium", "low"], default="low", help="Minimum severity threshold")
+    parser.add_argument("--include-tests", action="store_true", help="Include test directories and test files in scan")
     parser.add_argument("-o", "--output", help="Optional file path to write results")
 
     args = parser.parse_args()
@@ -540,9 +589,14 @@ def main():
         swift_files.append(target_path)
     else:
         for root, dirs, files in os.walk(target_path):
-            dirs[:] = [d for d in dirs if d not in IGNORED_DIRS]
+            if not args.include_tests:
+                dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.endswith("Tests") and not d.endswith("UITests")]
+            else:
+                dirs[:] = [d for d in dirs if d not in {".git", ".build", "Pods", "DerivedData", "Carthage", ".swiftpm"}]
             for file in files:
                 if file.endswith(".swift"):
+                    if not args.include_tests and (file.endswith("Tests.swift") or file.endswith("Test.swift") or file.endswith("Mock.swift")):
+                        continue
                     swift_files.append(Path(root) / file)
 
     all_findings: List[Finding] = []
@@ -553,6 +607,8 @@ def main():
         output = render_markdown(all_findings, str(target_path), args.min_severity)
     elif args.format == "json":
         output = render_json(all_findings, str(target_path), args.min_severity)
+    elif args.format == "xcode":
+        output = render_xcode(all_findings, str(target_path), args.min_severity)
     else:
         output = render_text(all_findings, str(target_path), args.min_severity)
 
@@ -561,7 +617,8 @@ def main():
             f.write(output)
         print(f"Audit results written to {args.output}")
     else:
-        print(output)
+        if output:
+            print(output)
 
     # Return exit code 1 if critical issues found
     if any(f.severity == "critical" for f in all_findings):

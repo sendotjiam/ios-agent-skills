@@ -38,12 +38,16 @@ class Finding:
     remediation: str
 
 class MemoryLeakScanner:
-    def __init__(self, target_path: str, min_severity: str = "low", ignore_patterns: Optional[List[str]] = None):
+    def __init__(self, target_path: str, min_severity: str = "low", ignore_patterns: Optional[List[str]] = None, include_tests: bool = False):
         self.target_path = Path(target_path).resolve()
         self.min_severity = min_severity.lower()
-        self.ignore_patterns = ignore_patterns or [
-            "Pods", "DerivedData", ".build", ".swiftpm", "Carthage", ".git", "golden_fixes"
-        ]
+        self.include_tests = include_tests
+        base_ignores = ["Pods", "DerivedData", ".build", ".swiftpm", "Carthage", ".git", "golden_fixes"]
+        if not include_tests:
+            base_ignores.extend(["Tests", "UITests", "UnitTests", "IntegrationTests", "Mocks", "Fixtures", "TestHelpers"])
+        if ignore_patterns:
+            base_ignores.extend(ignore_patterns)
+        self.ignore_patterns = base_ignores
         self.severity_order = {"critical": 4, "high": 3, "medium": 2, "low": 1}
         self.findings: List[Finding] = []
         self.files_scanned = 0
@@ -54,6 +58,34 @@ class MemoryLeakScanner:
         for pattern in self.ignore_patterns:
             if pattern in path_str.split(os.sep):
                 return True
+        if not self.include_tests:
+            name = path.name
+            if name.endswith("Tests.swift") or name.endswith("Test.swift") or name.endswith("Mock.swift") or name.endswith("Fixture.swift"):
+                return True
+        return False
+
+    def is_rule_suppressed(self, line: str, prev_line: Optional[str], rule_id: str) -> bool:
+        """Checks for same-line // ios-audit:ignore <RULE> or previous-line // ios-audit:ignore-next-line <RULE>."""
+        if "//" in line:
+            same_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore\s+([\w\-, ]+)", re.IGNORECASE)
+            m = same_line_pat.search(line)
+            if m:
+                ignored = [r.strip().upper() for r in m.group(1).split(",")]
+                if "ALL" in ignored or rule_id.upper() in ignored:
+                    return True
+            if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore-all\b", line, re.IGNORECASE):
+                return True
+
+        if prev_line and "//" in prev_line:
+            next_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line|disable-next-line)\s+([\w\-, ]+)", re.IGNORECASE)
+            m_next = next_line_pat.search(prev_line)
+            if m_next:
+                ignored = [r.strip().upper() for r in m_next.group(1).split(",")]
+                if "ALL" in ignored or rule_id.upper() in ignored:
+                    return True
+            if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line-all|disable-next-line-all)\b", prev_line, re.IGNORECASE):
+                return True
+
         return False
 
     def scan(self) -> List[Finding]:
@@ -108,6 +140,19 @@ class MemoryLeakScanner:
         self._check_memory_bloat_loops(lines, file_str)
         self._check_caches_and_core_data(lines, file_str)
         self._check_corefoundation_unmanaged(lines, file_str)
+
+        # Apply inline suppression directives
+        file_findings = []
+        for f in self.findings:
+            if f.file_path == file_str:
+                line_idx = f.line_number - 1
+                cur_line = lines[line_idx] if 0 <= line_idx < len(lines) else ""
+                prev_line = lines[line_idx - 1] if line_idx > 0 else ""
+                if not self.is_rule_suppressed(cur_line, prev_line, f.rule_id):
+                    file_findings.append(f)
+            else:
+                file_findings.append(f)
+        self.findings = file_findings
 
     def _check_strong_delegates(self, lines: List[str], file_path: str):
         in_protocol = False
@@ -417,6 +462,13 @@ class MemoryLeakScanner:
 
         return "\n".join(out)
 
+    def format_xcode(self) -> str:
+        lines = []
+        for f in self.findings:
+            sev = "error" if f.severity.lower() in ["critical", "high"] else "warning"
+            lines.append(f"{f.file_path}:{f.line_number}:1: {sev}: [{f.rule_id}] {f.description}: {f.remediation}")
+        return "\n".join(lines)
+
     def format_json(self) -> str:
         data = {
             "target": str(self.target_path),
@@ -434,7 +486,7 @@ def main():
     parser.add_argument("path", help="Path to iOS project directory or Swift file")
     parser.add_argument(
         "--format",
-        choices=["table", "markdown", "json"],
+        choices=["table", "text", "markdown", "json", "xcode"],
         default="table",
         help="Report output format (default: table)"
     )
@@ -452,6 +504,11 @@ def main():
         "--ignore",
         help="Comma-separated folder names to ignore"
     )
+    parser.add_argument(
+        "--include-tests",
+        action="store_true",
+        help="Include test directories and test files in scan"
+    )
 
     args = parser.parse_args()
     ignore_list = [p.strip() for p in args.ignore.split(",")] if args.ignore else None
@@ -459,14 +516,17 @@ def main():
     scanner = MemoryLeakScanner(
         target_path=args.path,
         min_severity=args.severity,
-        ignore_patterns=ignore_list
+        ignore_patterns=ignore_list,
+        include_tests=args.include_tests
     )
     findings = scanner.scan()
 
-    if args.format == "table":
+    if args.format in ["table", "text"]:
         output = scanner.format_table()
     elif args.format == "markdown":
         output = scanner.format_markdown()
+    elif args.format == "xcode":
+        output = scanner.format_xcode()
     else:
         output = scanner.format_json()
 
@@ -475,7 +535,8 @@ def main():
             f.write(output)
         print(f"Report saved to {args.output}")
     else:
-        print(output)
+        if output:
+            print(output)
 
     has_blocking = any(f.severity in ["Critical", "High"] for f in findings)
     sys.exit(1 if has_blocking else 0)

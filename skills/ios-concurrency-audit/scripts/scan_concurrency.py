@@ -26,6 +26,16 @@ DEFAULT_EXCLUDES = {
     ".swiftpm",
 }
 
+DEFAULT_TEST_EXCLUDES = {
+    "Tests",
+    "UITests",
+    "UnitTests",
+    "IntegrationTests",
+    "Mocks",
+    "Fixtures",
+    "TestHelpers",
+}
+
 
 @dataclass
 class Finding:
@@ -159,9 +169,71 @@ RULES = [
 ]
 
 
-def should_skip(path: Path) -> bool:
+def strip_inline_comment(line: str) -> str:
+    """Strips trailing // comments while preserving string literals."""
+    in_string = False
+    escape = False
+    out = []
+    i = 0
+    while i < len(line):
+        ch = line[i]
+        if escape:
+            out.append(ch)
+            escape = False
+            i += 1
+            continue
+        if ch == '\\' and in_string:
+            out.append(ch)
+            escape = True
+            i += 1
+            continue
+        if ch == '"':
+            in_string = not in_string
+            out.append(ch)
+            i += 1
+            continue
+        if not in_string and i + 1 < len(line) and line[i:i+2] == '//':
+            break
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def is_rule_suppressed(line: str, prev_line: Optional[str], rule_id: str) -> bool:
+    """Checks for same-line // ios-audit:ignore <RULE> or previous-line // ios-audit:ignore-next-line <RULE>."""
+    if "//" in line:
+        same_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore\s+([\w\-, ]+)", re.IGNORECASE)
+        m = same_line_pat.search(line)
+        if m:
+            ignored = [r.strip().upper() for r in m.group(1).split(",")]
+            if "ALL" in ignored or rule_id.upper() in ignored:
+                return True
+        if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore-all\b", line, re.IGNORECASE):
+            return True
+
+    if prev_line and "//" in prev_line:
+        next_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line|disable-next-line)\s+([\w\-, ]+)", re.IGNORECASE)
+        m_next = next_line_pat.search(prev_line)
+        if m_next:
+            ignored = [r.strip().upper() for r in m_next.group(1).split(",")]
+            if "ALL" in ignored or rule_id.upper() in ignored:
+                return True
+        if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line-all|disable-next-line-all)\b", prev_line, re.IGNORECASE):
+            return True
+
+    return False
+
+
+def should_skip(path: Path, include_tests: bool = False) -> bool:
     for part in path.parts:
         if part in DEFAULT_EXCLUDES or part.endswith(".xcodeproj") or part.endswith(".xcworkspace"):
+            return True
+        if not include_tests:
+            if part in DEFAULT_TEST_EXCLUDES or part.endswith("Tests") or part.endswith("UITests"):
+                return True
+    if not include_tests:
+        name = path.name
+        if name.endswith("Tests.swift") or name.endswith("Test.swift") or name.endswith("Mock.swift") or name.endswith("Fixture.swift"):
             return True
     return False
 
@@ -174,16 +246,28 @@ def scan_file(file_path: Path) -> List[Finding]:
     except Exception:
         return findings
 
-    for idx, line in enumerate(lines, start=1):
-        stripped = line.strip()
+    prev_line = ""
+    for idx, raw_line in enumerate(lines, start=1):
+        stripped = raw_line.strip()
         if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
+            prev_line = raw_line
             continue
 
+        code_only = strip_inline_comment(raw_line)
+
         for rule in RULES:
-            if rule["pattern"].search(line):
+            rule_id = rule["id"]
+            if is_rule_suppressed(raw_line, prev_line, rule_id):
+                continue
+
+            # Avoid false positive on static or lazy cached formatters
+            if rule_id == "HITCH-001" and re.search(r"\b(static\s+let|static\s+var|lazy\s+var)\b", code_only):
+                continue
+
+            if rule["pattern"].search(code_only):
                 findings.append(
                     Finding(
-                        rule_id=rule["id"],
+                        rule_id=rule_id,
                         severity=rule["severity"],
                         category=rule["category"],
                         file_path=str(file_path),
@@ -194,17 +278,19 @@ def scan_file(file_path: Path) -> List[Finding]:
                     )
                 )
 
+        prev_line = raw_line
+
     return findings
 
 
-def scan_directory(root_path: Path) -> List[Finding]:
+def scan_directory(root_path: Path, include_tests: bool = False) -> List[Finding]:
     all_findings: List[Finding] = []
     if root_path.is_file():
         return scan_file(root_path)
 
     for ext in ("*.swift", "*.m", "*.h"):
         for path in root_path.rglob(ext):
-            if not should_skip(path):
+            if not should_skip(path, include_tests=include_tests):
                 all_findings.extend(scan_file(path))
 
     all_findings.sort(key=lambda x: (SEVERITY_ORDER.get(x.severity, 99), x.file_path, x.line_number))
@@ -222,6 +308,16 @@ def format_table(findings: List[Finding]) -> str:
     for f in findings:
         loc = f"{Path(f.file_path).name}:{f.line_number}"
         lines.append(f"{f.severity:<10} {f.rule_id:<12} {loc:<50} {f.message}")
+    return "\n".join(lines)
+
+
+def format_xcode(findings: List[Finding]) -> str:
+    if not findings:
+        return ""
+    lines = []
+    for f in findings:
+        sev = "error" if f.severity.upper() in ["CRITICAL", "HIGH"] else "warning"
+        lines.append(f"{f.file_path}:{f.line_number}:1: {sev}: [{f.rule_id}] {f.message}")
     return "\n".join(lines)
 
 
@@ -258,8 +354,9 @@ def format_markdown(findings: List[Finding], target: str) -> str:
 def main():
     parser = argparse.ArgumentParser(description="Scan iOS codebase for concurrency and main-thread performance risks.")
     parser.add_argument("path", nargs="?", default=".", help="Path to project or file to scan (default: current directory)")
-    parser.add_argument("--format", choices=["table", "markdown", "json"], default="table", help="Output format")
+    parser.add_argument("--format", choices=["table", "text", "markdown", "json", "xcode"], default="table", help="Output format")
     parser.add_argument("--min-severity", choices=["CRITICAL", "HIGH", "MEDIUM", "LOW"], default="LOW", help="Minimum severity to report")
+    parser.add_argument("--include-tests", action="store_true", help="Include test directories and test files in scan")
     parser.add_argument("--output", "-o", help="Write output to file instead of stdout")
 
     args = parser.parse_args()
@@ -269,7 +366,7 @@ def main():
         print(f"Error: Path does not exist: {target_path}", file=sys.stderr)
         sys.exit(1)
 
-    findings = scan_directory(target_path)
+    findings = scan_directory(target_path, include_tests=args.include_tests)
     min_rank = SEVERITY_ORDER.get(args.min_severity, 3)
     filtered = [f for f in findings if SEVERITY_ORDER.get(f.severity, 3) <= min_rank]
 
@@ -277,6 +374,8 @@ def main():
         output = json.dumps([asdict(f) for f in filtered], indent=2)
     elif args.format == "markdown":
         output = format_markdown(filtered, str(target_path))
+    elif args.format == "xcode":
+        output = format_xcode(filtered)
     else:
         output = format_table(filtered)
 
@@ -285,9 +384,11 @@ def main():
             f.write(output + "\n")
         print(f"Report written to: {args.output}")
     else:
-        print(output)
+        if output:
+            print(output)
 
-    sys.exit(0)
+    has_critical = any(f.severity == "CRITICAL" for f in filtered)
+    sys.exit(1 if has_critical else 0)
 
 
 if __name__ == "__main__":

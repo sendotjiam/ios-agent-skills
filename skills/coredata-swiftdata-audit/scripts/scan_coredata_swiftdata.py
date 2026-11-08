@@ -42,12 +42,16 @@ class Finding:
     remediation: str
 
 class CoreDataSwiftDataScanner:
-    def __init__(self, target_path: str, min_severity: str = "low", ignore_patterns: Optional[List[str]] = None):
+    def __init__(self, target_path: str, min_severity: str = "low", ignore_patterns: Optional[List[str]] = None, include_tests: bool = False):
         self.target_path = Path(target_path).resolve()
         self.min_severity = min_severity.lower()
-        self.ignore_patterns = ignore_patterns or [
-            "Pods", "DerivedData", ".build", ".swiftpm", "Carthage", ".git"
-        ]
+        self.include_tests = include_tests
+        base_ignores = ["Pods", "DerivedData", ".build", ".swiftpm", "Carthage", ".git"]
+        if not include_tests:
+            base_ignores.extend(["Tests", "UITests", "UnitTests", "IntegrationTests", "Mocks", "Fixtures", "TestHelpers"])
+        if ignore_patterns:
+            base_ignores.extend(ignore_patterns)
+        self.ignore_patterns = base_ignores
         self.severity_order = {"critical": 4, "high": 3, "medium": 2, "low": 1}
         self.findings: List[Finding] = []
         self.files_scanned = 0
@@ -58,6 +62,34 @@ class CoreDataSwiftDataScanner:
         for pattern in self.ignore_patterns:
             if pattern in path_str.split(os.sep):
                 return True
+        if not self.include_tests:
+            name = path.name
+            if name.endswith("Tests.swift") or name.endswith("Test.swift") or name.endswith("Mock.swift") or name.endswith("Fixture.swift"):
+                return True
+        return False
+
+    def is_rule_suppressed(self, line: str, prev_line: Optional[str], rule_id: str) -> bool:
+        """Checks for same-line // ios-audit:ignore <RULE> or previous-line // ios-audit:ignore-next-line <RULE>."""
+        if "//" in line:
+            same_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore\s+([\w\-, ]+)", re.IGNORECASE)
+            m = same_line_pat.search(line)
+            if m:
+                ignored = [r.strip().upper() for r in m.group(1).split(",")]
+                if "ALL" in ignored or rule_id.upper() in ignored:
+                    return True
+            if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore-all\b", line, re.IGNORECASE):
+                return True
+
+        if prev_line and "//" in prev_line:
+            next_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line|disable-next-line)\s+([\w\-, ]+)", re.IGNORECASE)
+            m_next = next_line_pat.search(prev_line)
+            if m_next:
+                ignored = [r.strip().upper() for r in m_next.group(1).split(",")]
+                if "ALL" in ignored or rule_id.upper() in ignored:
+                    return True
+            if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line-all|disable-next-line-all)\b", prev_line, re.IGNORECASE):
+                return True
+
         return False
 
     def scan(self) -> List[Finding]:
@@ -119,6 +151,19 @@ class CoreDataSwiftDataScanner:
         self._check_batching_and_memory(clean_content, lines, file_str)
         self._check_fault_thrashing(clean_content, lines, file_str)
         self._check_migration_and_store_hygiene(clean_content, lines, file_str)
+
+        # Apply inline suppression directives
+        file_findings = []
+        for f in self.findings:
+            if f.file_path == file_str:
+                line_idx = f.line_number - 1
+                cur_line = lines[line_idx] if 0 <= line_idx < len(lines) else ""
+                prev_line = lines[line_idx - 1] if line_idx > 0 else ""
+                if not self.is_rule_suppressed(cur_line, prev_line, f.rule_id):
+                    file_findings.append(f)
+            else:
+                file_findings.append(f)
+        self.findings = file_findings
 
     def _get_line_number(self, match_start: int, content: str) -> int:
         return content[:match_start].count("\n") + 1
@@ -546,17 +591,25 @@ def format_markdown(findings: List[Finding], files_count: int, lines_count: int)
 
     return "\n".join(md)
 
+def format_xcode(findings: List[Finding]) -> str:
+    lines = []
+    for f in findings:
+        sev = "error" if f.severity.lower() in ["critical", "high"] else "warning"
+        lines.append(f"{f.file_path}:{f.line_number}:1: {sev}: [{f.rule_id}] {f.description}: {f.remediation}")
+    return "\n".join(lines)
+
 def main():
     parser = argparse.ArgumentParser(description="Zero-dependency Core Data & SwiftData Persistence Auditor")
     parser.add_argument("target", help="Swift file or project directory to scan")
-    parser.add_argument("--format", choices=["table", "markdown", "json"], default="table", help="Output format")
+    parser.add_argument("--format", choices=["table", "text", "markdown", "json", "xcode"], default="table", help="Output format")
     parser.add_argument("--min-severity", choices=["critical", "high", "medium", "low"], default="low", help="Minimum severity threshold")
+    parser.add_argument("--include-tests", action="store_true", help="Include test directories and test files in scan")
     parser.add_argument("-o", "--output", help="Optional output file path")
     parser.add_argument("--no-exit-code", action="store_true", help="Do not exit with code 1 if critical/high issues are found")
 
     args = parser.parse_args()
 
-    scanner = CoreDataSwiftDataScanner(args.target, min_severity=args.min_severity)
+    scanner = CoreDataSwiftDataScanner(args.target, min_severity=args.min_severity, include_tests=args.include_tests)
     findings = scanner.scan()
 
     if args.format == "json":
@@ -568,6 +621,8 @@ def main():
         }, indent=2)
     elif args.format == "markdown":
         output = format_markdown(findings, scanner.files_scanned, scanner.lines_scanned)
+    elif args.format == "xcode":
+        output = format_xcode(findings)
     else:
         output = format_table(findings, scanner.files_scanned, scanner.lines_scanned)
 
@@ -576,7 +631,8 @@ def main():
             f.write(output)
         print(f"Report written to {args.output}")
     else:
-        print(output)
+        if output:
+            print(output)
 
     if not args.no_exit_code:
         has_blockers = any(f.severity in ["Critical", "High"] for f in findings)

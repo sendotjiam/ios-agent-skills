@@ -47,12 +47,16 @@ class Finding:
     remediation: str
 
 class AccessibilityScanner:
-    def __init__(self, target_path: str, min_severity: str = "low", ignore_patterns: Optional[List[str]] = None):
+    def __init__(self, target_path: str, min_severity: str = "low", ignore_patterns: Optional[List[str]] = None, include_tests: bool = False):
         self.target_path = Path(target_path).resolve()
         self.min_severity = min_severity.lower()
-        self.ignore_patterns = ignore_patterns or [
-            "Pods", "DerivedData", ".build", ".swiftpm", "Carthage", ".git", "golden_fixes"
-        ]
+        self.include_tests = include_tests
+        base_ignores = ["Pods", "DerivedData", ".build", ".swiftpm", "Carthage", ".git", "golden_fixes"]
+        if not include_tests:
+            base_ignores.extend(["Tests", "UITests", "UnitTests", "IntegrationTests", "Mocks", "Fixtures", "TestHelpers"])
+        if ignore_patterns:
+            base_ignores.extend(ignore_patterns)
+        self.ignore_patterns = base_ignores
         self.severity_order = {"critical": 4, "high": 3, "medium": 2, "low": 1}
         self.findings: List[Finding] = []
         self.files_scanned = 0
@@ -63,6 +67,34 @@ class AccessibilityScanner:
         for pattern in self.ignore_patterns:
             if pattern in path_str.split(os.sep):
                 return True
+        if not self.include_tests:
+            name = path.name
+            if name.endswith("Tests.swift") or name.endswith("Test.swift") or name.endswith("Mock.swift") or name.endswith("Fixture.swift"):
+                return True
+        return False
+
+    def is_rule_suppressed(self, line: str, prev_line: Optional[str], rule_id: str) -> bool:
+        """Checks for same-line // ios-audit:ignore <RULE> or previous-line // ios-audit:ignore-next-line <RULE>."""
+        if "//" in line:
+            same_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore\s+([\w\-, ]+)", re.IGNORECASE)
+            m = same_line_pat.search(line)
+            if m:
+                ignored = [r.strip().upper() for r in m.group(1).split(",")]
+                if "ALL" in ignored or rule_id.upper() in ignored:
+                    return True
+            if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*ignore-all\b", line, re.IGNORECASE):
+                return True
+
+        if prev_line and "//" in prev_line:
+            next_line_pat = re.compile(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line|disable-next-line)\s+([\w\-, ]+)", re.IGNORECASE)
+            m_next = next_line_pat.search(prev_line)
+            if m_next:
+                ignored = [r.strip().upper() for r in m_next.group(1).split(",")]
+                if "ALL" in ignored or rule_id.upper() in ignored:
+                    return True
+            if re.search(r"//\s*(?:ios-audit|swift-audit)\s*:\s*(?:ignore-next-line-all|disable-next-line-all)\b", prev_line, re.IGNORECASE):
+                return True
+
         return False
 
     def scan(self) -> List[Finding]:
@@ -117,6 +149,19 @@ class AccessibilityScanner:
         self._check_hardcoded_colors(lines, content, file_str)
         self._check_redundant_trait_verbiage(lines, content, file_str)
         self._check_unscaled_metrics(lines, content, file_str)
+
+        # Apply inline suppression directives
+        file_findings = []
+        for f in self.findings:
+            if f.file_path == file_str:
+                line_idx = f.line_number - 1
+                cur_line = lines[line_idx] if 0 <= line_idx < len(lines) else ""
+                prev_line = lines[line_idx - 1] if line_idx > 0 else ""
+                if not self.is_rule_suppressed(cur_line, prev_line, f.rule_id):
+                    file_findings.append(f)
+            else:
+                file_findings.append(f)
+        self.findings = file_findings
 
     def _check_unlabelled_icon_buttons(self, lines: List[str], full_text: str, file_str: str):
         """Rule 1: Unlabelled interactive buttons or icons"""
@@ -477,6 +522,13 @@ def format_markdown(scanner: AccessibilityScanner, findings: List[Finding], dura
 
     return "\n".join(md)
 
+def format_xcode(findings: List[Finding]) -> str:
+    lines = []
+    for f in findings:
+        sev = "error" if f.severity.lower() in ["critical", "high"] else "warning"
+        lines.append(f"{f.file_path}:{f.line_number}:1: {sev}: [{f.rule_id}] {f.description}: {f.remediation}")
+    return "\n".join(lines)
+
 def format_json(scanner: AccessibilityScanner, findings: List[Finding], duration: float) -> str:
     data = {
         "metadata": {
@@ -494,21 +546,24 @@ def main():
     parser.add_argument("target", help="Target Swift file or Xcode project directory")
     parser.add_argument("--min-severity", choices=["critical", "high", "medium", "low"], default="low",
                         help="Filter minimum reported severity tier")
-    parser.add_argument("--format", choices=["text", "markdown", "json"], default="text",
-                        help="Output format (text, markdown, json)")
+    parser.add_argument("--format", choices=["text", "table", "markdown", "json", "xcode"], default="text",
+                        help="Output format (text, table, markdown, json, xcode)")
+    parser.add_argument("--include-tests", action="store_true", help="Include test directories and test files in scan")
     parser.add_argument("-o", "--output", help="Write report to output file")
 
     args = parser.parse_args()
 
-    scanner = AccessibilityScanner(args.target, min_severity=args.min_severity)
+    scanner = AccessibilityScanner(args.target, min_severity=args.min_severity, include_tests=args.include_tests)
     start_time = time.time()
     findings = scanner.scan()
     duration = time.time() - start_time
 
-    if args.format == "text":
+    if args.format in ["text", "table"]:
         result = format_text(scanner, findings, duration)
     elif args.format == "markdown":
         result = format_markdown(scanner, findings, duration)
+    elif args.format == "xcode":
+        result = format_xcode(findings)
     else:
         result = format_json(scanner, findings, duration)
 
@@ -517,7 +572,8 @@ def main():
             f.write(result)
         print(f"Report saved to {args.output}")
     else:
-        print(result)
+        if result:
+            print(result)
 
     # Return non-zero if critical findings exist
     has_critical = any(f.severity == "Critical" for f in findings)
