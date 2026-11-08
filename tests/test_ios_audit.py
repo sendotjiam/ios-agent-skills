@@ -112,6 +112,28 @@ class TestUnifiedAuditor(unittest.TestCase):
         self.assertGreaterEqual(len(sarif["runs"][0]["results"]), 1)
         self.assertEqual(sarif["runs"][0]["tool"]["driver"]["name"], "ios-audit")
 
+    def test_iphone_duo_skill_audit(self):
+        fixture_dir = REPO_ROOT / "skills/ios-iphone-duo-audit/evals/files"
+        proc = subprocess.run(
+            [str(CLI_PATH), str(fixture_dir), "--skills", "duo", "--format", "json", "--no-exit-code"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0)
+        data = json.loads(proc.stdout)
+        rule_ids = {f["rule_id"] for f in data["findings"]}
+        expected_rules = {
+            "DUO_SCREEN_BOUNDS_HARDCODED",
+            "DUO_ARRANGEMENT_INVALID_NESTING",
+            "DUO_IDIOM_OR_ORIENTATION_LAYOUT",
+            "DUO_TOOLBAR_TEXT_ONLY_ITEM",
+            "DUO_CUSTOM_BAR_BYPASS",
+            "DUO_FIXED_FRAME_WIDTH",
+            "DUO_ODD_GRID_COLUMNS_ON_FOLD",
+            "DUO_MANUAL_TOOLBAR_SPACER",
+        }
+        self.assertTrue(expected_rules.issubset(rule_ids))
+
 
 if __name__ == "__main__":
     unittest.main()

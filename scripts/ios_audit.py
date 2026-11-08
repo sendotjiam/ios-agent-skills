@@ -53,6 +53,7 @@ ALL_SKILLS = [
     "privacy",
     "launch",
     "testing",
+    "duo",
 ]
 
 SKILL_DISPLAY_NAMES = {
@@ -65,6 +66,7 @@ SKILL_DISPLAY_NAMES = {
     "privacy": "ios-privacy-security-audit",
     "launch": "ios-app-launch-audit",
     "testing": "swift-testing-migration",
+    "duo": "ios-iphone-duo-audit",
 }
 
 
@@ -341,6 +343,28 @@ class UnifiedAuditor:
                     str(self.target_path),
                     min_severity="low",
                     include_tests=True,
+                )
+                raw = scanner.scan()
+                for f in raw:
+                    findings.append(
+                        UnifiedFinding(
+                            skill=skill_name,
+                            rule_id=f.rule_id,
+                            severity=f.severity.upper(),
+                            file_path=f.file_path,
+                            line_number=f.line_number,
+                            message=f.description,
+                            recommendation=f.remediation,
+                        )
+                    )
+
+            elif skill_key == "duo":
+                script_path = REPO_ROOT / "skills/ios-iphone-duo-audit/scripts/scan_iphone_duo.py"
+                mod = load_module("scan_iphone_duo", script_path)
+                scanner = mod.IPhoneDuoScanner(
+                    str(self.target_path),
+                    min_severity="low",
+                    include_tests=self.include_tests,
                 )
                 raw = scanner.scan()
                 for f in raw:

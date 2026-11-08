@@ -118,18 +118,18 @@ def run_evals():
     # Eval 4: Multi-Skill Orchestration & Speed
     # -------------------------------------------------------------
     e4_start = time.perf_counter()
-    all_9_skills = ["concurrency", "renders", "memory", "persistence", "a11y", "cleanup", "privacy", "launch", "testing"]
+    all_10_skills = ["concurrency", "renders", "memory", "persistence", "a11y", "cleanup", "privacy", "launch", "testing", "duo"]
     auditor4 = UnifiedAuditor(
         target_path=p3,
-        skills=all_9_skills,
+        skills=all_10_skills,
         min_severity="LOW",
     )
     findings4 = auditor4.run()
     e4_time = (time.perf_counter() - e4_start) * 1000
 
     e4_checks = [
-        ("All 9 skills executed with zero symbol or namespace collisions", len(auditor4.execution_times) == 9),
-        ("Execution times measured for all 9 skills", all(k in auditor4.execution_times for k in all_9_skills)),
+        ("All 10 skills executed with zero symbol or namespace collisions", len(auditor4.execution_times) == 10),
+        ("Execution times measured for all 10 skills", all(k in auditor4.execution_times for k in all_10_skills)),
         ("Total multi-skill scan execution completes in < 50ms", e4_time < 50.0),
     ]
 

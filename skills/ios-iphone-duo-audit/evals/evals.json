@@ -1,0 +1,45 @@
+{
+  "skill_name": "ios-iphone-duo-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit eval1_screen_and_idiom_layout.swift for iPhone Duo resizing and pose adaptation anti-patterns.",
+      "expected_output": "Audit report identifying hardcoded UIScreen.main.bounds, UIDevice.userInterfaceIdiom layout branching, and rigid fixed-width frames.",
+      "files": ["evals/files/eval1_screen_and_idiom_layout.swift"],
+      "expectations": [
+        "Identifies UIScreen.main.bounds as DUO_SCREEN_BOUNDS_HARDCODED",
+        "Identifies UIDevice.current.userInterfaceIdiom / orientation check as DUO_IDIOM_OR_ORIENTATION_LAYOUT",
+        "Identifies rigid .frame(width: 390) as DUO_FIXED_FRAME_WIDTH"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Audit eval2_arrangement_and_fold_hazards.swift for ArrangementView container nesting violations and hinge division grid issues.",
+      "expected_output": "Audit report flagging ArrangementView nested inside ScrollView or wrapping NavigationSplitView, plus a 3-column LazyVGrid straddling the center fold.",
+      "files": ["evals/files/eval2_arrangement_and_fold_hazards.swift"],
+      "expectations": [
+        "Identifies invalid ArrangementView nesting as DUO_ARRANGEMENT_INVALID_NESTING",
+        "Identifies 3-column LazyVGrid across fold division as DUO_ODD_GRID_COLUMNS_ON_FOLD"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Audit eval3_vertical_toolbar_hazards.swift for vertical side-bar incompatibilities on iPhone Duo.",
+      "expected_output": "Audit report flagging text-only ToolbarItem buttons that fail to appear vertically and manual Spacer/ellipsis overflow patterns.",
+      "files": ["evals/files/eval3_vertical_toolbar_hazards.swift"],
+      "expectations": [
+        "Identifies text-only ToolbarItem button as DUO_TOOLBAR_TEXT_ONLY_ITEM",
+        "Identifies manual toolbar spacer or custom ellipsis menu as DUO_MANUAL_TOOLBAR_SPACER"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Audit eval4_uikit_custom_bars.swift for UIKit manual bar instantiation that bypasses iPhone Duo vertical side-bar presentation.",
+      "expected_output": "Audit report flagging standalone UIToolbar() and UITabBar() subviews.",
+      "files": ["evals/files/eval4_uikit_custom_bars.swift"],
+      "expectations": [
+        "Identifies standalone UIToolbar/UITabBar instantiation as DUO_CUSTOM_BAR_BYPASS"
+      ]
+    }
+  ]
+}

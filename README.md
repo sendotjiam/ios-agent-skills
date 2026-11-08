@@ -25,12 +25,13 @@ A curated collection of production-grade agentic AI skills for iOS, iPadOS, macO
 | **`ios-privacy-security-audit`** | Privacy, Security & App Store | [`skills/ios-privacy-security-audit`](./skills/ios-privacy-security-audit) | Audits codebases for Apple Privacy Manifest (`PrivacyInfo.xcprivacy`) required reason APIs (enforced May 2024), unencrypted credential/JWT storage in `UserDefaults`, hardcoded API keys/secrets, ATS HTTP exceptions, and biometric auth bypasses. |
 | **`ios-app-launch-audit`** | Startup & Launch Performance | [`skills/ios-app-launch-audit`](./skills/ios-app-launch-audit) | Audits cold/warm startup bottlenecks against MetricKit's $<400\text{ms}$ budget. Detects synchronous store loading in `@main` `init()`, main-thread blocking I/O in `didFinishLaunching`, SDK init pileups, and Objective-C `+load` pre-main overhead. |
 | **`swift-testing-migration`** | Testing Modernization & Swift 6 | [`skills/swift-testing-migration`](./skills/swift-testing-migration) | Audits test suites for modernization to the WWDC24 Swift `Testing` framework. Identifies legacy `XCTestCase` classes, converts assertions to `#expect`, migrates loops to `@Test(arguments: [...])`, and eliminates flaky `Thread.sleep` waits. |
+| **`ios-iphone-duo-audit`** | Dual-Display & Foldable Layout (iOS 27.1+) | [`skills/ios-iphone-duo-audit`](./skills/ios-iphone-duo-audit) | Audits and designs apps for iPhone Duo's compact outer display, regular inner display, 6 poses, `ReservedRegion` (`.occlusion` / `.division`), `ArrangementView` / `UIArrangementViewController`, and vertical side-mounted toolbars & tab bars (`ToolbarVerticalCompressionBehavior`, `ToolbarOverflowMenu`, icon+title item rules). |
 
 ---
 
 ## 🛠️ Unified Auditor CLI (`bin/ios-audit`)
 
-Run all 9 specialized iOS audits simultaneously with a single zero-dependency command:
+Run all 10 specialized iOS audits simultaneously with a single zero-dependency command:
 
 ```bash
 # Run all audits across your Xcode workspace
