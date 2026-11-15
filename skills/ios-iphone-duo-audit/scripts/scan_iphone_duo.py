@@ -466,6 +466,41 @@ class IPhoneDuoScanner:
                             )
                         )
 
+            # Rule 9: Plurigent Anti-Pattern - Hardcoded screen point constants (466 / 951 / 475.5)
+            m_fixed_dim = re.search(r"(?:==|!=|<=|>=)\s*(?:466|951|475\.5)\b", line)
+            if m_fixed_dim:
+                rule_id = "DUO_HARDCODED_SCREEN_DIMENSION"
+                if not self.is_rule_suppressed(line, prev_line, rule_id):
+                    self.findings.append(
+                        Finding(
+                            severity="High",
+                            category="Hardcoded iPhone Duo Dimension Check",
+                            rule_id=rule_id,
+                            file_path=file_str,
+                            line_number=idx + 1,
+                            matched_snippet=stripped,
+                            description="Hardcoded equality check against iPhone Duo hardware dimensions (466 pt outer, 951 pt inner, or 475.5 pt fold center) breaks across Split View, orientations, and future form factors.",
+                            remediation="Branch on size classes (compact vs regular) or query view.bounds, GeometryReader, or ReservedRegion at runtime.",
+                        )
+                    )
+
+            # Rule 10: Plurigent Anti-Pattern - Symmetric safe-area doubling (width - inset * 2)
+            if re.search(r"\b(?:safeAreaInsets\.(?:left|right|leading|trailing)|safeAreaInset(?:Left|Right))\s*\*\s*2\b", line):
+                rule_id = "DUO_SYMMETRIC_SAFE_AREA_ASSUMPTION"
+                if not self.is_rule_suppressed(line, prev_line, rule_id):
+                    self.findings.append(
+                        Finding(
+                            severity="High",
+                            category="Symmetric Safe-Area Calculation",
+                            rule_id=rule_id,
+                            file_path=file_str,
+                            line_number=idx + 1,
+                            matched_snippet=stripped,
+                            description="Multiplying a horizontal safe-area inset by 2 assumes symmetric insets; iPhone Duo features asymmetric insets (e.g. 0 pt left vs 84 pt right for vertical bars).",
+                            remediation="Handle left and right / leading and trailing insets independently rather than mirroring one side.",
+                        )
+                    )
+
 
 def format_table(scanner: IPhoneDuoScanner) -> str:
     lines = []

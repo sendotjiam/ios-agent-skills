@@ -103,6 +103,22 @@ def run_evals():
     e4_passed = all(c[1] for c in e4_checks)
     results.append(("Eval 4: eval4_uikit_custom_bars.swift", e4_passed, e4_time, e4_checks))
 
+    # --- Eval 5: Plurigent Anti-Patterns (hardcoded dimensions & symmetric insets) ---
+    e5_start = time.perf_counter()
+    p5 = str(FILES_DIR / "eval5_plurigent_antipatterns.swift")
+    s5 = IPhoneDuoScanner(p5, min_severity="low")
+    findings5 = s5.scan()
+    e5_time = (time.perf_counter() - e5_start) * 1000
+    rule_ids5 = {f.rule_id for f in findings5}
+
+    e5_checks = [
+        ("Identifies hardcoded dimension checks as DUO_HARDCODED_SCREEN_DIMENSION", "DUO_HARDCODED_SCREEN_DIMENSION" in rule_ids5),
+        ("Identifies symmetric safe area doubling as DUO_SYMMETRIC_SAFE_AREA_ASSUMPTION", "DUO_SYMMETRIC_SAFE_AREA_ASSUMPTION" in rule_ids5),
+        ("Flags multiple dimension checks (466 and 951)", sum(1 for f in findings5 if f.rule_id == "DUO_HARDCODED_SCREEN_DIMENSION") >= 2),
+    ]
+    e5_passed = all(c[1] for c in e5_checks)
+    results.append(("Eval 5: eval5_plurigent_antipatterns.swift", e5_passed, e5_time, e5_checks))
+
     # --- Report Output ---
     total_time = (time.perf_counter() - start_total_time) * 1000
     total_checks = 0

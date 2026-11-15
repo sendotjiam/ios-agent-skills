@@ -40,6 +40,16 @@
       "expectations": [
         "Identifies standalone UIToolbar/UITabBar instantiation as DUO_CUSTOM_BAR_BYPASS"
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "Audit eval5_plurigent_antipatterns.swift for hardcoded iPhone Duo dimensions and symmetric safe-area assumptions.",
+      "expected_output": "Audit report flagging hardcoded 466/951 dimension checks and safeAreaInsets.left * 2 calculation.",
+      "files": ["evals/files/eval5_plurigent_antipatterns.swift"],
+      "expectations": [
+        "Identifies hardcoded dimension checks as DUO_HARDCODED_SCREEN_DIMENSION",
+        "Identifies symmetric safe area doubling as DUO_SYMMETRIC_SAFE_AREA_ASSUMPTION"
+      ]
     }
   ]
 }
